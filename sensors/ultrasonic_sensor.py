@@ -28,3 +28,5 @@ class UltrasonicSensor(Sensor):
                 if start <= distance <= end:
                     return int(row["slot_id"])
         return None
+    
+    

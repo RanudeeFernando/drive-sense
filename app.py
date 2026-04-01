@@ -18,7 +18,7 @@ import threading
 def main():
     
 
-    print("🚗 Smart Parking System Started...\n")
+    print("Smart Parking System Started...\n")
     ultrasonic = UltrasonicSensor()
     camera = CameraSensor()
     model = VehicleClassificationModel()
@@ -35,20 +35,20 @@ def main():
     exit_controller = ExitController(
         ultrasonic, slot, ticket, receipt
     )
-    light_sensor = LightSensor()
-    light_controller = LightController(light_sensor)
+    # light_sensor = LightSensor()
+    # light_controller = LightController(light_sensor)
 
-    # Run light system in a separate thread
-    light_thread = threading.Thread(target=light_controller.run, daemon=True)
-    light_thread.start()
-    print("🚗 Smart Parking System Started...\n")
+    # # Run light system in a separate thread
+    # light_thread = threading.Thread(target=light_controller.run, daemon=True)
+    # light_thread.start()
+    print(" Smart Parking System Started...\n")
 
     while True:
         entry_controller.process_vehicle()
-        print("⏳ Waiting 5 seconds...\n")
+        print(" Waiting 5 seconds...\n")
         time.sleep(5)
         exit_controller.process_exit()
-        print("⏳ Waiting 5 seconds...\n")
+        print(" Waiting 5 seconds...\n")
         time.sleep(5)
 
 
