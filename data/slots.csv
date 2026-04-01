@@ -1,0 +1,6 @@
+slot_id,slot_type,slot_length,slot_width,is_occupied,distance_start,distance_end
+1,bike,2.0,1.0,False,1,4
+2,bike,2.0,1.0,False,5,8
+3,bike,5.0,2.5,False,9,12
+4,car,5.0,2.5,False,13,16
+5,lorry,10.0,3.5,False,17,20
