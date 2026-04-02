@@ -1,0 +1,93 @@
+body {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  margin: 0;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.header p {
+  color: #888;
+  font-size: 1.1rem;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.slot-card {
+  background: #1e1e1e;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #333;
+}
+
+.slot-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+}
+
+.slot-card.available::before {
+  background-color: #4cd137;
+}
+
+.slot-card.occupied::before {
+  background-color: #e84118;
+}
+
+.slot-card h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-top: 1rem;
+}
+
+.available .status-badge {
+  background-color: rgba(76, 209, 55, 0.2);
+  color: #4cd137;
+}
+
+.occupied .status-badge {
+  background-color: rgba(232, 65, 24, 0.2);
+  color: #e84118;
+}
+
+.ticket-id {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: #aaa;
+}

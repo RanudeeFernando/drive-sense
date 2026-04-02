@@ -1,1 +1,28 @@
-/venv
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables — NEVER commit real credentials
+.env
+.env.local
+.env.production
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# ML model binaries (large files — add to Git LFS or store in S3 instead)
+models/*.h5
+models/*.pkl
+
+# Temp uploads from Cloud Server
+cloud_temp/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
