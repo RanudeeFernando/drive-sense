@@ -45,3 +45,4 @@ The system follows a **three-layer Edge AI architecture**:
 - ☁️ Cloud integration for monitoring  
 
 ---
+ ## API endpoints  - http://127.0.0.1:8000/docs
