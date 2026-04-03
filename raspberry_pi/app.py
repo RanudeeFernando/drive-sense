@@ -17,7 +17,7 @@ def main():
     model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model.h5")
     model = VehicleClassificationModel(model_name=model_path)
 
-    print("🚗 Raspberry Pi Edge Node Started...")
+    print(" Raspberry Pi Edge Node Started...")
     
     for i in range(2):
         print(f"\n--- Entry level ultrasonic sensor acitvated ---")
@@ -29,7 +29,7 @@ def main():
             if not os.path.exists(img_path) and os.path.exists(os.path.join("..", img_path)):
                 img_path = os.path.join("..", img_path)
             elif not os.path.exists(img_path):
-                 print(f"❌ Camera capture didn't generate {img_path}")
+                 print(f" Camera capture didn't generate {img_path}")
                  time.sleep(2)
                  continue
 
@@ -49,7 +49,7 @@ def main():
         print(f"--- Exit level ultrasonic sensor activated ---")
         if ultrasonic.detect_exit_vehicle():
              distance = ultrasonic.get_distance()
-             print(f"🚗 Vehicle exiting. Distance measured: {distance} cm")
+             print(f" Vehicle exiting. Distance measured: {distance} cm")
              try:
                  print(f"📡 Sending distance to cloud API to release slot...")
                  response = requests.post(f"{CLOUD_API_URL}/release_slot", json={"distance": distance})

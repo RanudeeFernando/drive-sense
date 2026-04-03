@@ -11,5 +11,5 @@ class CameraSensor(Sensor):
         images = [f for f in os.listdir(folder) if f.endswith((".jpg", ".jpeg", ".png"))]
         image = random.choice(images)
         path = os.path.join(folder, image)
-        print(f"📸 Captured: {image}")
+        print(f" Captured: {image}")
         return path
