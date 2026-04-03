@@ -1,15 +1,45 @@
 import os
-import random
+import cv2
+import time
 from sensors.sensor import Sensor
 
 class CameraSensor(Sensor):
-    def __init__(self, sensor_id: int =1):
+    def __init__(self, sensor_id: int = 1, camera_index: int = 0):
         super().__init__(sensor_id)
+        self.camera_index = camera_index
 
     def capture_image(self) -> str:
-        folder = "raspberry_pi/test"
-        images = [f for f in os.listdir(folder) if f.endswith((".jpg", ".jpeg", ".png"))]
-        image = random.choice(images)
-        path = os.path.join(folder, image)
-        print(f" Captured: {image}")
-        return path
+        # Folder to save images
+        folder = "raspberry_pi/captured_images"
+        os.makedirs(folder, exist_ok=True)
+
+        # Initialize camera
+        cap = cv2.VideoCapture(self.camera_index)
+
+        if not cap.isOpened():
+            print(" Cannot open USB camera")
+            return None
+
+        # Warm-up camera (important!)
+        time.sleep(0.5)
+
+        ret, frame = cap.read()
+
+        if not ret:
+            print(" Failed to capture image")
+            cap.release()
+            return None
+
+        # Unique filename using timestamp
+        timestamp = int(time.time())
+        filename = f"vehicle_{timestamp}.jpg"
+        filepath = os.path.join(folder, filename)
+
+        # Save image
+        cv2.imwrite(filepath, frame)
+
+        print(f" Captured image: {filename}")
+
+        cap.release()
+
+        return filepath

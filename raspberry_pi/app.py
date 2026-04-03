@@ -48,10 +48,19 @@ def main():
         # Check for exiting vehicles
         print(f"--- Exit level ultrasonic sensor activated ---")
         if ultrasonic.detect_free_slot_by_distance() is not None:
-             slot_id=ultrasonic.detect_free_slot_by_distance()
-             if slot_id is not None:
+            try:
+                slot_id=ultrasonic.detect_free_slot_by_distance()
                 print(f" Sending freed slot {slot_id} to cloud...")
                 response = requests.post(f"{CLOUD_API_URL}/release_slot",json={"slot_id": slot_id})
+                if response.status_code == 200:
+                    print(f" Cloud Response: {response.json()}")
+                else:                    
+                    print(f" Cloud Error: {response.status_code} - {response.text}")   
+            except Exception as e:
+                print(f" Failed to reach cloud API: {e}")
+
+
+
 
         # Check light levels
         resistance = ldr_sensor.detect_light_level()
