@@ -29,6 +29,6 @@ class LightController:
                 print("🌑 [LIGHT] Turned OFF")
 
     def run(self):
-        while True:
+        for _ in range(5):   # run 5 times only
             self.control_light()
             time.sleep(10)

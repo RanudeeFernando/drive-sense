@@ -1,10 +1,7 @@
-# api_app.py
-from fastapi import FastAPI
-from pydantic import BaseModel
-import threading
-import time
+# api.py
 
-# Import your parking system modules
+from fastapi import APIRouter
+
 from sensors.ultrasonic_sensor import UltrasonicSensor
 from sensors.camera_sensor import CameraSensor
 from ml_models.vehicle_classification_model import VehicleClassificationModel
@@ -13,43 +10,44 @@ from data_models.ticket import Ticket
 from controller.entry_controller import EntryController
 from controller.exit_controller import ExitController
 from data_models.receipt import Receipt
+from sensors.light_sensor import LightSensor
+from controller.light_controller import LightController
 
-app = FastAPI(title="Smart Parking System API")
+# Create router
+router = APIRouter()
 
-# Initialize the system once at startup
+# Initialize shared system (IMPORTANT: only once)
 ultrasonic = UltrasonicSensor()
 camera = CameraSensor()
 model = VehicleClassificationModel()
 slot = ParkingSlot()
 ticket = Ticket()
 receipt = Receipt("", 0)
+light_sensor = LightSensor()
 
-entry_controller = EntryController(ultrasonic, camera, model, slot, ticket)
-exit_controller = ExitController(ultrasonic, slot, ticket, receipt)
+entry_controller = EntryController(
+    ultrasonic, camera, model, slot, ticket
+)
 
-# Optional: Background thread for lights if needed
-# from sensors.light_sensor import LightSensor
-# from controller.light_controller import LightController
-# light_sensor = LightSensor()
-# light_controller = LightController(light_sensor)
-# threading.Thread(target=light_controller.run, daemon=True).start()
+exit_controller = ExitController(
+    ultrasonic, slot, ticket, receipt
+)
 
-@app.get("/")
-def health_check():
-    return {"message": "Smart Parking System API is running!"}
+light_controller = LightController(light_sensor)
 
-@app.post("/process-entry")
-def process_entry():
-    try:
-        vehicle_info = entry_controller.process_vehicle()
-        return {"status": "success", "vehicle_info": vehicle_info}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+@router.post("/entry")
+def vehicle_entry():
+    entry_controller.process_vehicle()
+    return {"message": "Vehicle entry processed"}
 
-@app.post("/process-exit")
-def process_exit():
-    try:
-        exit_info = exit_controller.process_exit()
-        return {"status": "success", "exit_info": exit_info}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+
+@router.post("/exit")
+def vehicle_exit():
+    exit_controller.process_exit()
+    return {"message": "Vehicle exit processed"}
+
+
+@router.post("/light")
+def control_light():
+    light_controller.run()
+    return {"message": "Light system triggered"}
