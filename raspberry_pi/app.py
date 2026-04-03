@@ -21,8 +21,8 @@ def main():
     
     for i in range(2):
         print(f"\n--- Entry level ultrasonic sensor acitvated ---")
-        if ultrasonic.detect_entry_vehicle():
-            print("🚘 Vehicle Arrived!")
+        if ultrasonic.detect_object_in_range():
+            print(" Vehicle Arrived!")
             img_path = camera.capture_image()
             
             # Since the camera sensor dumps images to root, we might want to ensure they exist
@@ -47,18 +47,11 @@ def main():
 
         # Check for exiting vehicles
         print(f"--- Exit level ultrasonic sensor activated ---")
-        if ultrasonic.detect_exit_vehicle():
-             distance = ultrasonic.get_distance()
-             print(f" Vehicle exiting. Distance measured: {distance} cm")
-             try:
-                 print(f"📡 Sending distance to cloud API to release slot...")
-                 response = requests.post(f"{CLOUD_API_URL}/release_slot", json={"distance": distance})
-                 if response.status_code == 200:
-                     print(f"✅ Cloud Response: {response.json()}")
-                 else:
-                     print(f"❌ Cloud Error: {response.status_code} - {response.text}")
-             except Exception as e:
-                 print(f"❌ Failed to reach cloud API: {e}")
+        if ultrasonic.detect_free_slot_by_distance() is not None:
+             slot_id=ultrasonic.detect_free_slot_by_distance()
+             if slot_id is not None:
+                print(f" Sending freed slot {slot_id} to cloud...")
+                response = requests.post(f"{CLOUD_API_URL}/release_slot",json={"slot_id": slot_id})
 
         # Check light levels
         resistance = ldr_sensor.detect_light_level()

@@ -38,11 +38,33 @@ class UltrasonicSensor(Sensor):
 
         return round(distance, 2)
 
-    def detect_vehicle_by_range(self, min_distance, max_distance):
+    # This method is used to detect the slot availabiltity.
+    def detect_free_slot_by_distance(self):
         distance = self.get_distance()
         print(f"{self.get_sensor_name()} Distance: {distance} cm")
 
+        slot_ranges = {
+            1: (0, 5),
+            2: (5, 10),
+            3: (10, 15),
+            4: (15, 20),
+            5: (20, 25)
+        }
+
+        for slot_id, (min_d, max_d) in slot_ranges.items():
+            if min_d <= distance < max_d:
+                print(f" Slot {slot_id} vehicle exited")
+                return slot_id
+
+        return None
+    
+    # This method is used to detect the presence of a vechicle at the entry point and trigger the camera.
+    def detect_object_in_range(self, min_distance=5, max_distance=10):
+        distance = self.get_distance()
+        print(f"Measured distance: {distance} cm")
+
         if min_distance <= distance <= max_distance:
-            print(f"Vehicle detected in range {min_distance}-{max_distance}")
+            print(" Object detected in range!")
             return True
-        return False
+        else:
+            return False
