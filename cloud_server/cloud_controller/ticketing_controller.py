@@ -1,25 +1,46 @@
-# cloud_server/cloud_controller/ticketing_controller.py
-from cloud_server.data_models.parking_slot import ParkingSlot
-from cloud_server.data_models.ticket import Ticket
+from datetime import datetime
+import uuid
+
+from cloud_server.repositories.slot_repository import SlotRepository
+from cloud_server.repositories.ticket_repository import TicketRepository
+
 
 class TicketingController:
-    def __init__(self, slot, ticket):
-        self.slot = slot
-        self.ticket = ticket
+    def __init__(self):
+        self.slot_repository = SlotRepository()
+        self.ticket_repository = TicketRepository()
 
-    def allocate_ticket(self, vehicle_type: str):
-        # find available slot
-        slot_id = self.slot.find_available_slot(vehicle_type)
+    def generate_ticket_id(self):
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        short_uuid = str(uuid.uuid4())[:6].upper()
+        return f"TICKET-{timestamp}-{short_uuid}"
 
-        if slot_id:
-            # reserve slot
-            self.slot.reserve_slot(slot_id)
+    def process_ticket(self, vehicle_type):
+        available_slot = self.slot_repository.get_available_slot_by_type(vehicle_type)
 
-            #  generate ticket
-            ticket_id = self.ticket.generate_ticket(slot_id, vehicle_type)
+        if not available_slot:
+            return {
+                "status": "failed",
+                "message": f"No available {vehicle_type} slots",
+                "ticket_id": None,
+                "slot_id": None
+            }
 
-            print(f" Slot {slot_id} allocated for {vehicle_type}. Ticket: {ticket_id}")
-            return {"status": "success", "ticket_id": ticket_id, "slot_id": slot_id}
-        else:
-            print(f" No slots available for {vehicle_type}!")
-            return {"status": "failed", "message": "No slots available"}
+        slot_doc_id = available_slot["id"]
+        slot_id = available_slot.get("slot_id", slot_doc_id)
+
+        self.slot_repository.reserve_slot(slot_doc_id)
+
+        ticket_id = self.generate_ticket_id()
+        self.ticket_repository.create_ticket(
+            ticket_id=ticket_id,
+            vehicle_type=vehicle_type,
+            slot_id=slot_id
+        )
+
+        return {
+            "status": "success",
+            "message": f"{vehicle_type} allocated to slot {slot_id}",
+            "ticket_id": ticket_id,
+            "slot_id": slot_id
+        }

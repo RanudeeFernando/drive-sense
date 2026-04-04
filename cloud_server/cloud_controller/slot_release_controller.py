@@ -1,31 +1,29 @@
-# cloud_server/cloud_controller/slot_release_controller.py
-import csv
+from cloud_server.repositories.slot_repository import SlotRepository
+
 
 class SlotReleaseController:
-    def __init__(self, slot):
-        self.slot = slot
-
-    def get_slot_from_distance(self, distance: float):
-        with open("cloud_server/data/slots.csv", "r") as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                start = float(row["distance_start"])
-                end = float(row["distance_end"])
-                if start <= distance <= end:
-                    return int(row["slot_id"])
-        return None
+    def __init__(self):
+        self.slot_repository = SlotRepository()
 
     def process_slot_release(self, distance: float):
-        print(f"📡 Received exit distance: {distance} cm")
-        slot_id = self.get_slot_from_distance(distance)
-        
-        if slot_id is not None:
-            # release the slot
-            success = self.slot.release_slot(slot_id)
-            if success:
-                return {"status": "success", "slot_id": slot_id, "message": "Slot released successfully"}
-            else:
-                return {"status": "failed", "message": "Slot could not be released"}
-        else:
-            print("❌ Distance mapped to no known slot!")
-            return {"status": "failed", "message": "Invalid distance mapping"}
+        # Step 1: Find slot based on distance range
+        slot = self.slot_repository.find_slot_by_distance(distance)
+
+        if not slot:
+            return {
+                "status": "failed",
+                "message": "No matching slot found for given distance",
+                "slot_id": None
+            }
+
+        slot_doc_id = slot["id"]
+        slot_id = slot.get("slot_id", slot_doc_id)
+
+        # Step 2: Release slot in Firestore
+        self.slot_repository.release_slot(slot_doc_id)
+
+        return {
+            "status": "success",
+            "message": f"Slot {slot_id} released successfully",
+            "slot_id": slot_id
+        }
