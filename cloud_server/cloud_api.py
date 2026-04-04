@@ -1,56 +1,64 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from cloud_server.cloud_controller.ticketing_controller import TicketingController
-from cloud_server.cloud_controller.slot_release_controller import SlotReleaseController
-from cloud_server.cloud_controller.receipt_controller import ReceiptController
-from cloud_server.cloud_controller.light_controller import LightController
-from cloud_server.data_models.parking_slot import ParkingSlot
-from cloud_server.data_models.ticket import Ticket
-from cloud_server.data_models.receipt import Receipt
+
+from cloud_server.services.slot_manager_service import SlotManagerService
+from cloud_server.services.ticket_manager_service import TicketManagerService
+from cloud_server.services.light_controller import LightController
+
+from cloud_server.repositories.slot_repository import SlotRepository
+from cloud_server.repositories.ticket_repository import TicketRepository
+
 from cloud_server.data_models.vehicle_type import VehicleType
 
 router = APIRouter()
 
-# Initialize classes
-slot = ParkingSlot()
-ticket = Ticket()
-receipt = Receipt("", 0)
+# Initialize repositories
+slot_repository = SlotRepository()
+ticket_repository = TicketRepository()
 
-# Initialize controllers
-ticketing_controller = TicketingController(slot, ticket)
-slot_release_controller = SlotReleaseController(slot)
-receipt_controller = ReceiptController(receipt, slot)
+# Initialize services
+slot_manager_service = SlotManagerService(slot_repository)
+ticket_manager_service = TicketManagerService(
+    ticket_repository=ticket_repository,
+    slot_manager_service=slot_manager_service
+)
+
+# Keep light separately for now
 light_controller = LightController()
+
 
 # Pydantic schemas for request bodies
 class TicketingRequest(BaseModel):
     vehicle_type: VehicleType
 
+
 class SlotReleaseRequest(BaseModel):
     distance: float
 
+
 class ReceiptRequest(BaseModel):
     ticket_id: str
+
 
 class LightRequest(BaseModel):
     resistance: float
 
 
-@router.post("/ticketing")
+@router.post("/ticket")
 def allocate_ticket(req: TicketingRequest):
-    return ticketing_controller.allocate_ticket(req.vehicle_type)
+    return ticket_manager_service.allocate_ticket(req.vehicle_type)
 
 
-@router.post("/release_slot")
+@router.post("/release-slot")
 def process_slot_release(req: SlotReleaseRequest):
-    return slot_release_controller.process_slot_release(req.distance)
+    return slot_manager_service.release_slot_by_distance(req.distance)
 
 
-@router.post("/ereceipt")
+@router.post("/ticket-receipt")
 def get_receipt(req: ReceiptRequest):
-    return receipt_controller.generate_ereceipt(req.ticket_id)
+    return ticket_manager_service.generate_e_receipt(req.ticket_id)
 
 
-@router.post("/light")
+@router.post("/lighting")
 def control_light(req: LightRequest):
     return light_controller.process_light(req.resistance)

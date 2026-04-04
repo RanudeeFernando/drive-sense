@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from cloud_server.cloud.firestore_client import get_db
+from cloud_server.cloud_db.firestore_client import get_db
 
 SLOTS = [
     {"slot_id": "1", "slot_type": "bike",  "slot_length": 2.0,  "slot_width": 1.0,  "is_occupied": False, "distance_start": 1,  "distance_end": 4},

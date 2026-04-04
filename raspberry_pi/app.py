@@ -17,12 +17,12 @@ def main():
     model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model.h5")
     model = VehicleClassificationModel(model_name=model_path)
 
-    print("🚗 Raspberry Pi Edge Node Started...")
+    print(" Raspberry Pi Edge Node Started...")
     
     for i in range(2):
         print(f"\n--- Entry level ultrasonic sensor acitvated ---")
         if ultrasonic.detect_entry_vehicle():
-            print("🚘 Vehicle Arrived!")
+            print(" Vehicle Arrived!")
             img_path = camera.capture_image()
             
             # Since the camera sensor dumps images to root, we might want to ensure they exist
@@ -37,7 +37,7 @@ def main():
             
             print(f"📡 Sending {vehicle_type} classification to cloud API...")
             try:
-                response = requests.post(f"{CLOUD_API_URL}/ticketing", json={"vehicle_type": vehicle_type})
+                response = requests.post(f"{CLOUD_API_URL}/ticket", json={"vehicle_type": vehicle_type})
                 if response.status_code == 200:
                     print(f" Cloud Response: {response.json()}")
                 else:
@@ -46,35 +46,39 @@ def main():
                 print(f" Failed to reach cloud API: {e}")
 
         # Check for exiting vehicles
-        print(f"--- Exit level ultrasonic sensor activated ---")
-        if ultrasonic.detect_exit_vehicle():
-             distance = ultrasonic.get_distance()
-             print(f"🚗 Vehicle exiting. Distance measured: {distance} cm")
-             try:
-                 print(f"📡 Sending distance to cloud API to release slot...")
-                 response = requests.post(f"{CLOUD_API_URL}/release_slot", json={"distance": distance})
-                 if response.status_code == 200:
-                     print(f"✅ Cloud Response: {response.json()}")
-                 else:
-                     print(f"❌ Cloud Error: {response.status_code} - {response.text}")
-             except Exception as e:
-                 print(f"❌ Failed to reach cloud API: {e}")
+        print("--- Exit level ultrasonic sensor activated ---")
+        distance = ultrasonic.get_distance()
+
+        if distance is not None:
+            try:
+                print(f"Sending exit distance {distance} to cloud...")
+                response = requests.post(
+                    f"{CLOUD_API_URL}/release-slot",
+                    json={"distance": distance}
+                )
+                if response.status_code == 200:
+                    print(f"Cloud Response: {response.json()}")
+                else:
+                    print(f"Cloud Error: {response.status_code} - {response.text}")
+            except Exception as e:
+                print(f"Failed to reach cloud API: {e}")
+
 
         # Check light levels
         resistance = ldr_sensor.detect_light_level()
         print(f"--- LDR sensor: {resistance} Ω ---")
         try:
-            light_resp = requests.post(f"{CLOUD_API_URL}/light", json={"resistance": resistance})
+            light_resp = requests.post(f"{CLOUD_API_URL}/lighting", json={"resistance": resistance})
             if light_resp.status_code == 200:
                 is_on = light_resp.json().get("light_on", False)
                 if is_on:
-                    print("💡 [PI RELAY] Turning LED ON!")
+                    print("[PI RELAY] Turning LED ON!")
                 else:
-                    print("🌑 [PI RELAY] Turning LED OFF!")
+                    print("[PI RELAY] Turning LED OFF!")
             else:
-                 print(f"❌ Cloud Error: {light_resp.status_code}")
+                 print(f"Cloud Error: {light_resp.status_code}")
         except Exception as e:
-             print(f"❌ Failed to reach cloud API: {e}")
+             print(f"Failed to reach cloud API: {e}")
                  
         time.sleep(2)
 

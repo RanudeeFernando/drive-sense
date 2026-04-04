@@ -1,16 +1,28 @@
-from datetime import datetime
-from cloud_server.cloud.firestore_client import get_db
+# cloud_server/data_models/ticket.py
+
 from cloud_server.data_models.parking_slot import ParkingSlot
 from cloud_server.data_models.vehicle_type import VehicleType
 
-
 class Ticket:
-    def __init__(self, ticket_id: str = "", parking_slot: ParkingSlot = None,
-                 vehicle_type: str = "car", entry_time: str = ""):
+    def __init__(
+        self,
+        ticket_id: str,
+        parking_slot: ParkingSlot,
+        vehicle_type: VehicleType,
+        entry_time: str,
+        exit_time: str = "",
+        duration_minutes: float = 0,
+        price: float = 0,
+        status: str = "active"
+    ):
         self._ticket_id = ticket_id
         self._parking_slot = parking_slot
         self._vehicle_type = vehicle_type
         self._entry_time = entry_time
+        self._exit_time = exit_time
+        self._duration_minutes = duration_minutes
+        self._price = price
+        self._status = status
 
     def get_ticket_id(self) -> str:
         return self._ticket_id
@@ -24,10 +36,13 @@ class Ticket:
     def set_parking_slot(self, parking_slot: ParkingSlot) -> None:
         self._parking_slot = parking_slot
 
-    def get_vehicle_type(self) -> str:
+    def get_slot_id(self) -> int:
+        return self._parking_slot.get_slot_id()
+
+    def get_vehicle_type(self) -> VehicleType:
         return self._vehicle_type
 
-    def set_vehicle_type(self, vehicle_type: str) -> None:
+    def set_vehicle_type(self, vehicle_type: VehicleType) -> None:
         self._vehicle_type = vehicle_type
 
     def get_entry_time(self) -> str:
@@ -36,20 +51,38 @@ class Ticket:
     def set_entry_time(self, entry_time: str) -> None:
         self._entry_time = entry_time
 
-    def generate_ticket(self, slot_id, vehicle_type: VehicleType) -> str:
-        db = get_db()
+    def get_exit_time(self) -> str:
+        return self._exit_time
 
-        # Timestamp-based ID — unique, human-readable, chronologically sortable
-        ticket_id = f"DST-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-        entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    def set_exit_time(self, exit_time: str) -> None:
+        self._exit_time = exit_time
 
-        db.collection("tickets").document(ticket_id).set({
-            "ticket_id": ticket_id,
-            "slot_id": str(slot_id),
-            "vehicle_type": str(vehicle_type.value),
-            "entry_time": entry_time,
-            "exit_time": ""
-        })
+    def get_duration_minutes(self) -> float:
+        return self._duration_minutes
 
-        print(f"Ticket {ticket_id} generated for slot {slot_id}")
-        return ticket_id
+    def set_duration_minutes(self, duration_minutes: float) -> None:
+        self._duration_minutes = duration_minutes
+
+    def get_price(self) -> float:
+        return self._price
+
+    def set_price(self, price: float) -> None:
+        self._price = price
+
+    def get_status(self) -> str:
+        return self._status
+
+    def set_status(self, status: str) -> None:
+        self._status = status
+
+    def to_dict(self) -> dict:
+        return {
+            "ticket_id": self._ticket_id,
+            "slot_id": self._parking_slot.get_slot_id(),  # store only ID
+            "vehicle_type": self._vehicle_type.value,
+            "entry_time": self._entry_time,
+            "exit_time": self._exit_time,
+            "duration_minutes": self._duration_minutes,
+            "price": self._price,
+            "status": self._status
+        }

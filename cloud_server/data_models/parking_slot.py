@@ -1,15 +1,21 @@
-from cloud_server.cloud.firestore_client import get_db
+from cloud_server.cloud_db.firestore_client import get_db
 from cloud_server.data_models.vehicle_type import VehicleType
 
 
 class ParkingSlot:
-    def __init__(self, slot_id: int = 1, slot_type: str = "car",
-                 slot_length: float = 5, slot_width: float = 2):
+    def __init__(
+        self,
+        slot_id: int,
+        slot_type: VehicleType,
+        slot_length: float,
+        slot_width: float,
+        is_occupied: bool = False
+    ):
         self._slot_id = slot_id
         self._slot_type = slot_type
         self._slot_length = slot_length
         self._slot_width = slot_width
-        self._is_occupied = False
+        self._is_occupied = is_occupied
 
     def set_slot_id(self, slot_id: int) -> None:
         self._slot_id = slot_id
@@ -40,6 +46,15 @@ class ParkingSlot:
 
     def get_slot_status(self) -> bool:
         return self._is_occupied
+
+    def to_dict(self) -> dict:
+        return {
+            "slot_id": self._slot_id,
+            "slot_type": self._slot_type.value,
+            "slot_length": self._slot_length,
+            "slot_width": self._slot_width,
+            "is_occupied": self._is_occupied,
+        }
 
     def find_available_slot(self, vehicle_type: VehicleType):
         """Return the first unoccupied slot_id matching the vehicle type, or None."""
