@@ -1,8 +1,10 @@
-import csv
+from cloud_server.cloud.firestore_client import get_db
+from cloud_server.data_models.vehicle_type import VehicleType
 
 
 class ParkingSlot:
-    def __init__(self, slot_id: int = 1, slot_type: str = "car", slot_length: float = "5", slot_width: float ="2"):
+    def __init__(self, slot_id: int = 1, slot_type: str = "car",
+                 slot_length: float = 5, slot_width: float = 2):
         self._slot_id = slot_id
         self._slot_type = slot_type
         self._slot_length = slot_length
@@ -39,47 +41,29 @@ class ParkingSlot:
     def get_slot_status(self) -> bool:
         return self._is_occupied
 
-
-    def release_slot(self, slot_id: int) -> bool:
-        rows = []
-
-        with open("cloud_server/data/slots.csv", "r") as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if row["slot_id"] == str(slot_id):
-                    row["is_occupied"] = "False"
-                rows.append(row)
-
-        with open("cloud_server/data/slots.csv", "w", newline="") as file:
-            writer = csv.DictWriter(file, fieldnames=rows[0].keys())
-            writer.writeheader()
-            writer.writerows(rows)
-
-        print(f"🅿️ Slot {slot_id} released")
-        return True
-
-
-    def find_available_slot(self, vehicle_type):
-        with open("cloud_server/data/slots.csv", "r") as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if row["slot_type"] == vehicle_type and row["is_occupied"] == "False":
-                    return row["slot_id"]
+    def find_available_slot(self, vehicle_type: VehicleType):
+        """Return the first unoccupied slot_id matching the vehicle type, or None."""
+        db = get_db()
+        slots = (
+            db.collection("slots")
+            .where("slot_type", "==", str(vehicle_type.value))
+            .where("is_occupied", "==", False)
+            .limit(1)
+            .stream()
+        )
+        for slot in slots:
+            return slot.get("slot_id")
         return None
 
-    def reserve_slot(self, slot_id):
-        rows = []
-
-        with open("cloud_server/data/slots.csv", "r") as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if row["slot_id"] == slot_id:
-                    row["is_occupied"] = "True"
-                rows.append(row)
-
-        with open("cloud_server/data/slots.csv", "w", newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=rows[0].keys())
-            writer.writeheader()
-            writer.writerows(rows)
-
+    def reserve_slot(self, slot_id) -> None:
+        """Mark a slot as occupied in Firestore."""
+        db = get_db()
+        db.collection("slots").document(str(slot_id)).update({"is_occupied": True})
         print(f"Slot {slot_id} reserved")
+
+    def release_slot(self, slot_id: int) -> bool:
+        """Mark a slot as free in Firestore."""
+        db = get_db()
+        db.collection("slots").document(str(slot_id)).update({"is_occupied": False})
+        print(f"Slot {slot_id} released")
+        return True

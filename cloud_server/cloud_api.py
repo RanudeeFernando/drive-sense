@@ -7,6 +7,7 @@ from cloud_server.cloud_controller.light_controller import LightController
 from cloud_server.data_models.parking_slot import ParkingSlot
 from cloud_server.data_models.ticket import Ticket
 from cloud_server.data_models.receipt import Receipt
+from cloud_server.data_models.vehicle_type import VehicleType
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ light_controller = LightController()
 
 # Pydantic schemas for request bodies
 class TicketingRequest(BaseModel):
-    vehicle_type: str
+    vehicle_type: VehicleType
 
 class SlotReleaseRequest(BaseModel):
     distance: float

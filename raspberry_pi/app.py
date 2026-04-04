@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from sensors.ultrasonic_sensor import UltrasonicSensor
 from sensors.camera_sensor import CameraSensor
-from raspberry_pi.sensors.ldr_sensor import LDRSensor
+from sensors.ldr_sensor import LDRSensor
 from ml_models.vehicle_classification_model import VehicleClassificationModel
 
 CLOUD_API_URL = "http://127.0.0.1:8000"

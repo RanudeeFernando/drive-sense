@@ -1,2 +1,7 @@
 /venv
 __pycache__/
+
+# Google Cloud credentials - NEVER commit these
+credentials/
+*.json
+serviceAccountKey.json

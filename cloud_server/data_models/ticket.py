@@ -1,15 +1,16 @@
-import csv
 from datetime import datetime
-import os
+from cloud_server.cloud.firestore_client import get_db
 from cloud_server.data_models.parking_slot import ParkingSlot
+from cloud_server.data_models.vehicle_type import VehicleType
+
 
 class Ticket:
-    def __init__(self, ticket_id: str = "DST-1", parking_slot: ParkingSlot = 1, vehicle_type: str = "car", entry_time: str = "2026-03-31 00:42:03"):
+    def __init__(self, ticket_id: str = "", parking_slot: ParkingSlot = None,
+                 vehicle_type: str = "car", entry_time: str = ""):
         self._ticket_id = ticket_id
         self._parking_slot = parking_slot
         self._vehicle_type = vehicle_type
         self._entry_time = entry_time
-        
 
     def get_ticket_id(self) -> str:
         return self._ticket_id
@@ -35,44 +36,20 @@ class Ticket:
     def set_entry_time(self, entry_time: str) -> None:
         self._entry_time = entry_time
 
-    def generate_ticket(self, slot_id, vehicle_type) -> str:
-        tickets_file = "cloud_server/data/tickets.csv"
-        last_number = 0
-        tickets = []
+    def generate_ticket(self, slot_id, vehicle_type: VehicleType) -> str:
+        db = get_db()
 
-        # Read existing tickets if file exists
-        if os.path.exists(tickets_file):
-            with open(tickets_file, "r", newline='') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    tickets.append(row)
-                    try:
-                        num = int(row["ticket_id"].split("-")[1])
-                        if num > last_number:
-                            last_number = num
-                    except:
-                        continue
+        # Timestamp-based ID — unique, human-readable, chronologically sortable
+        ticket_id = f"DST-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Generate new ticket ID
-        new_ticket_id = f"DST-{last_number + 1}"
+        db.collection("tickets").document(ticket_id).set({
+            "ticket_id": ticket_id,
+            "slot_id": str(slot_id),
+            "vehicle_type": str(vehicle_type.value),
+            "entry_time": entry_time,
+            "exit_time": ""
+        })
 
-        # Create new ticket row with entry_time
-        new_ticket = {
-            "ticket_id": new_ticket_id,
-            "slot_id": slot_id,
-            "vehicle_type": vehicle_type,
-            "entry_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        tickets.append(new_ticket)
-
-        # Determine fieldnames dynamically to include all columns
-        fieldnames = tickets[0].keys() if tickets else ["ticket_id", "slot_id", "vehicle_type", "entry_time"]
-
-        # Write updated tickets back to CSV
-        with open(tickets_file, "w", newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(tickets)
-
-        print(f" Ticket {new_ticket_id} generated for slot {slot_id}")
-        return new_ticket_id
+        print(f"Ticket {ticket_id} generated for slot {slot_id}")
+        return ticket_id

@@ -1,6 +1,7 @@
-import csv
 from datetime import datetime
-import os
+from cloud_server.cloud.firestore_client import get_db
+from cloud_server.data_models.vehicle_type import VehicleType, PARKING_RATES
+
 
 class Receipt:
     def __init__(self, exit_time: str = "", price: float = 0.0):
@@ -19,36 +20,20 @@ class Receipt:
     def set_price(self, price: float) -> None:
         self._price = price
 
-    def generate_receipt(self, ticket_id: str, slot_id: int, vehicle_type: str, entry_time: str) -> str:
-        # Save receipt to CSV
-        receipts_file = "cloud_server/data/receipts.csv"
-        receipt_row = {
+    def generate_receipt(self, ticket_id: str, slot_id: int,
+                         vehicle_type: str, entry_time) -> str:
+        db = get_db()
+
+        # Store receipt document in Firestore (auto-generated ID)
+        db.collection("receipts").add({
             "ticket_id": ticket_id,
-            "slot_id": slot_id,
-            "vehicle_type": vehicle_type,
-            "entry_time": entry_time,
+            "slot_id": str(slot_id),
+            "vehicle_type": str(vehicle_type),
+            "entry_time": str(entry_time),
             "exit_time": self._exit_time,
-            "total_amount": f"{self._price:.2f}"
-        }
+            "total_amount": round(self._price, 2)
+        })
 
-        # Read existing receipts
-        rows = []
-        if os.path.exists(receipts_file):
-            with open(receipts_file, "r", newline="") as file:
-                reader = csv.DictReader(file)
-                rows = list(reader)
-
-        # Add new receipt
-        rows.append(receipt_row)
-
-        # Write updated CSV
-        with open(receipts_file, "w", newline="") as file:
-            fieldnames = ["ticket_id", "slot_id", "vehicle_type", "entry_time", "exit_time", "total_amount"]
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
-
-        # Return printable receipt
         return (f"--- RECEIPT ---\n"
                 f"Ticket ID: {ticket_id}\n"
                 f"Slot ID: {slot_id}\n"
@@ -59,7 +44,10 @@ class Receipt:
                 f"---------------")
 
     def calculate_price(self, vehicle_type: str, duration_hours: float) -> float:
-        rates = {'bike': 50, 'car': 100, 'lorry': 130}
-        rate = rates.get(vehicle_type.lower(), 100)
+        # Look up rate from centralised PARKING_RATES in vehicle_type.py
+        try:
+            rate = PARKING_RATES[VehicleType(vehicle_type.lower())]
+        except (ValueError, KeyError):
+            rate = 100  # default fallback
         self._price = rate * duration_hours
         return self._price
