@@ -14,8 +14,8 @@ def main():
     ultrasonic = UltrasonicSensor()
     camera = CameraSensor()
     ldr_sensor = LDRSensor()
-    model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model.h5")
-    model = VehicleClassificationModel(model_name=model_path)
+    model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model_int8.tflite")
+    model = VehicleClassificationModel(model_path)
 
     print(" Raspberry Pi Edge Node Started...")
     

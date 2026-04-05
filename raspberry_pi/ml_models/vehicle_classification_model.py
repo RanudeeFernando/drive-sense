@@ -1,32 +1,43 @@
-import numpy as np # type: ignore
-import tensorflow as tf # type: ignore
-
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 class VehicleClassificationModel:
-    def __init__(self, model_name: str = "vehicle_model.h5"):
-        self.model_name = model_name
-        self.model = tf.keras.models.load_model(self.model_name, compile=False) 
+    def __init__(self, model_path: str = "ml_models/vehicle_model_int8.tflite"):
+        self.model_path = model_path
 
-    def get_model_name(self) -> str:
-        return self.model_name
+        # Load TFLite model
+        self.interpreter = tf.lite.Interpreter(model_path=self.model_path)
+        self.interpreter.allocate_tensors()
 
-    def set_model_name(self, model_name: str) -> None:
-        self.model_name = model_name
+        # Get input & output details
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
 
-    def classify_vehicle(self, img_path: str) -> str:  
+    def classify_vehicle(self, img_path: str) -> str:
         img = tf.keras.utils.load_img(img_path, target_size=(224, 224))
         img_array = tf.keras.utils.img_to_array(img)
-
-        # normalize (very important if model expects it)
-        img_array = img_array / 255.0
-
+        img_array = preprocess_input(img_array)
         img_array = np.expand_dims(img_array, axis=0)
 
-        prediction = self.model.predict(img_array)
+        input_scale, input_zero_point = self.input_details[0]['quantization']
 
-        classes = ["bike", "car", "lorry"]
-        result = classes[np.argmax(prediction)]
-        confidence = round(prediction[0][np.argmax(prediction)] * 100)
+        if input_scale != 0:
+            img_array = img_array / input_scale + input_zero_point
+            img_array = np.round(img_array).astype(np.int8)
 
-        print(f"🔍 Classified as: {result} (Confidence: {confidence:.2f})")
+        self.interpreter.set_tensor(self.input_details[0]['index'], img_array)
+        self.interpreter.invoke()
+
+        output = self.interpreter.get_tensor(self.output_details[0]['index'])
+        output_scale, output_zero_point = self.output_details[0]['quantization']
+
+        if output_scale != 0:
+            output = (output.astype(np.float32) - output_zero_point) * output_scale
+
+        classes = ["bike", "car", "lorry", "unknown"]
+        result = classes[np.argmax(output)]
+        confidence = round(output[0][np.argmax(output)] * 100, 2)
+
+        print(f"🔍 Classified as: {result} (Confidence: {confidence}%)")
         return result
