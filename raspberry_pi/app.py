@@ -8,7 +8,7 @@ from sensors.camera_sensor import CameraSensor
 from sensors.ldr_sensor import LDRSensor
 from ml_models.vehicle_classification_model import VehicleClassificationModel
 
-CLOUD_API_URL = "http://127.0.0.1:8000"
+CLOUD_API_URL = "http://34.100.218.79:8000"
 
 def main():
     entry_sensor = UltrasonicSensor(
@@ -59,20 +59,20 @@ def main():
 
         # Check for exiting vehicles
         print(f"--- Exit level ultrasonic sensor activated ---")
-        if slot_sensor.detect_free_slot_by_distance() is not None:
+        distance = slot_sensor.get_distance()
+        if distance is not None:
             try:
-                slot_id=slot_sensor.detect_free_slot_by_distance()
-                print(f" Sending freed slot {slot_id} to cloud...")
-                response = requests.post(f"{CLOUD_API_URL}/release-slot",json={"slot_id": slot_id})
+                print(f"Sending exit distance {distance} to cloud...")
+                response = requests.post(
+                    f"{CLOUD_API_URL}/release-slot",
+                    json={"distance": distance}
+                )
                 if response.status_code == 200:
-                    print(f" Cloud Response: {response.json()}")
+                    print(f"Cloud Response: {response.json()}")
                 else:
-                    print(f" Cloud Error: {response.status_code} - {response.text}")
+                    print(f"Cloud Error: {response.status_code} - {response.text}")
             except Exception as e:
-                print(f" Failed to reach cloud API: {e}")
-
-
-
+                print(f"Failed to reach cloud API: {e}")
 
         # Check light levels
         resistance = ldr_sensor.read_resistance()

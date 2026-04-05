@@ -41,7 +41,7 @@ class ReceiptRequest(BaseModel):
 
 
 class LightRequest(BaseModel):
-    resistance: float
+    light_on: bool
 
 
 @router.post("/ticket")
@@ -58,7 +58,6 @@ def process_slot_release(req: SlotReleaseRequest):
 def get_receipt(req: ReceiptRequest):
     return ticket_manager_service.generate_e_receipt(req.ticket_id)
 
-
 @router.post("/lighting")
 def control_light(req: LightRequest):
-    return light_controller.process_light(req.resistance)
+    return light_controller.process_light(req.light_on)

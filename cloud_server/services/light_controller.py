@@ -5,16 +5,19 @@ class LightController:
         self.threshold = threshold
         self.light_on = False
 
-    def process_light(self, resistance: float):
-        print(f"💡 Resistance: {resistance}")
-        
-        if resistance > self.threshold:
-            if not self.light_on:
-                self.light_on = True
-                print("🔆 Turned ON")
-            return {"status": "success", "light_on": True}
-        else:
+    def process_light(self, light_on: bool):
+        print(f"Light status received from PI: {light_on}")
+
+        # Update internal state (optional but useful)
+        if light_on != self.light_on:
+            self.light_on = light_on
+
             if self.light_on:
-                self.light_on = False
-                print("🌑 Turned OFF")
-            return {"status": "success", "light_on": False}
+                print("Light turned ON (edge-triggered)")
+            else:
+                print("Light turned OFF (edge-triggered)")
+
+        return {
+            "status": "success",
+            "light_on": self.light_on
+        }
