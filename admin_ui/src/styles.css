@@ -1,0 +1,168 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background: #f4f6f8;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.browser-frame {
+  width: 900px;
+  min-height: 550px;
+  background: #fff;
+  border: 1px solid #ccc;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.browser-header {
+  padding: 14px 20px;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+  background: #f7f7f7;
+}
+
+.browser-body,
+.content-area {
+  padding: 40px;
+}
+
+.login-card {
+  width: 420px;
+  margin: 40px auto;
+  border: 2px solid #999;
+  border-radius: 35px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-card input {
+  padding: 10px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.primary-btn {
+  background: #0d8bff;
+  color: white;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  background: #ddd;
+}
+
+.tab {
+  padding: 10px 14px;
+  background: #f0f0f0;
+  border: none;
+  text-decoration: none;
+  color: #333;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tab.active {
+  background: #0d8bff;
+  color: white;
+}
+
+.section-title {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.setting-row {
+  width: 500px;
+  margin: 18px auto;
+  padding: 14px 20px;
+  border: 1px solid #ccc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle-btn {
+  border: none;
+  padding: 8px 18px;
+  border-radius: 16px;
+  color: white;
+  cursor: pointer;
+}
+
+.toggle-btn.on {
+  background: #0d8bff;
+}
+
+.toggle-btn.off {
+  background: #777;
+}
+
+.button-row {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  width: 700px;
+  margin: 0 auto;
+}
+
+.slot-box {
+  border: 1px solid #777;
+  padding: 20px;
+  text-align: center;
+  background: #fff;
+}
+
+.slot-box.available {
+  background: #eaf9ea;
+}
+
+.slot-box.occupied {
+  background: #fdeaea;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.logs-table th,
+.logs-table td {
+  border: 1px solid #bbb;
+  padding: 10px;
+  text-align: center;
+}
+
+.logs-table th {
+  background: #f2f2f2;
+}
