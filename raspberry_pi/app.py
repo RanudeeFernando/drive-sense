@@ -11,7 +11,19 @@ from ml_models.vehicle_classification_model import VehicleClassificationModel
 CLOUD_API_URL = "http://127.0.0.1:8000"
 
 def main():
-    ultrasonic = UltrasonicSensor()
+    entry_sensor = UltrasonicSensor(
+        sensor_id=1,
+        name="Entry Sensor",
+        trig_pin=16,
+        echo_pin=18
+    )
+
+    slot_sensor = UltrasonicSensor(
+        sensor_id=2,
+        name="Slot Sensor",
+        trig_pin=22,
+        echo_pin=24
+    )
     camera = CameraSensor()
     ldr_sensor = LDRSensor()
     model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model_int8.tflite")
@@ -21,7 +33,7 @@ def main():
     
     for i in range(2):
         print(f"\n--- Entry level ultrasonic sensor acitvated ---")
-        if ultrasonic.detect_entry_vehicle():
+        if entry_sensor.detect_object_in_range():
             print(" Vehicle Arrived!")
             img_path = camera.capture_image()
             
@@ -29,13 +41,13 @@ def main():
             if not os.path.exists(img_path) and os.path.exists(os.path.join("..", img_path)):
                 img_path = os.path.join("..", img_path)
             elif not os.path.exists(img_path):
-                 print(f"❌ Camera capture didn't generate {img_path}")
+                 print(f" Camera capture didn't generate {img_path}")
                  time.sleep(2)
                  continue
 
             vehicle_type = model.classify_vehicle(img_path)
             
-            print(f"📡 Sending {vehicle_type} classification to cloud API...")
+            print(f" Sending {vehicle_type} classification to cloud API...")
             try:
                 response = requests.post(f"{CLOUD_API_URL}/ticket", json={"vehicle_type": vehicle_type})
                 if response.status_code == 200:
@@ -46,40 +58,47 @@ def main():
                 print(f" Failed to reach cloud API: {e}")
 
         # Check for exiting vehicles
-        print("--- Exit level ultrasonic sensor activated ---")
-        distance = ultrasonic.get_distance()
-
-        if distance is not None:
+        print(f"--- Exit level ultrasonic sensor activated ---")
+        if slot_sensor.detect_free_slot_by_distance() is not None:
             try:
-                print(f"Sending exit distance {distance} to cloud...")
-                response = requests.post(
-                    f"{CLOUD_API_URL}/release-slot",
-                    json={"distance": distance}
-                )
+                slot_id=slot_sensor.detect_free_slot_by_distance()
+                print(f" Sending freed slot {slot_id} to cloud...")
+                response = requests.post(f"{CLOUD_API_URL}/release-slot",json={"slot_id": slot_id})
                 if response.status_code == 200:
-                    print(f"Cloud Response: {response.json()}")
+                    print(f" Cloud Response: {response.json()}")
                 else:
-                    print(f"Cloud Error: {response.status_code} - {response.text}")
+                    print(f" Cloud Error: {response.status_code} - {response.text}")
             except Exception as e:
-                print(f"Failed to reach cloud API: {e}")
+                print(f" Failed to reach cloud API: {e}")
+
+
 
 
         # Check light levels
-        resistance = ldr_sensor.detect_light_level()
+        resistance = ldr_sensor.read_resistance()
         print(f"--- LDR sensor: {resistance} Ω ---")
+
+        light_status = ldr_sensor.is_light(resistance)
+        ldr_sensor.control_led(light_status)
+
         try:
-            light_resp = requests.post(f"{CLOUD_API_URL}/lighting", json={"resistance": resistance})
+            light_resp = requests.post(
+                f"{CLOUD_API_URL}/lighting",
+                json={"light_on": light_status}
+            )
+
             if light_resp.status_code == 200:
                 is_on = light_resp.json().get("light_on", False)
                 if is_on:
-                    print("[PI RELAY] Turning LED ON!")
+                    print(" [PI RELAY] Turning LED ON!")
                 else:
-                    print("[PI RELAY] Turning LED OFF!")
+                    print(" [PI RELAY] Turning LED OFF!")
             else:
-                 print(f"Cloud Error: {light_resp.status_code}")
+                print(f" Cloud Error: {light_resp.status_code}")
+
         except Exception as e:
-             print(f"Failed to reach cloud API: {e}")
-                 
+            print(f" Failed to reach cloud API: {e}")
+
         time.sleep(2)
 
 if __name__ == "__main__":

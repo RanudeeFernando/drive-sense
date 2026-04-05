@@ -1,7 +1,15 @@
 slot_id,slot_type,slot_length,slot_width,is_occupied,distance_start,distance_end
+<<<<<<< HEAD:data/slots.csv
+1,lorry,2.0,1.0,True,1,4
+2,lorry,2.0,1.0,False,5,8
+3,lorry,5.0,2.5,False,9,12
+4,lorry,5.0,2.5,False,13,16
+5,lorry,10.0,3.5,False,17,20
+=======
 1,bike,2.0,1.0,True,1,4
 2,bike,2.0,1.0,True,5,8
 3,bike,5.0,2.5,False,9,12
 4,car,5.0,2.5,False,13,16
 5,lorry,10.0,3.5,True,17,20
 6,lorry,10.0,3.5,True,21,24
+>>>>>>> bdf0dc47df3b08bc5f7fc657e71af7b5b2066edc:cloud_server/data/slots.csv
