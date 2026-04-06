@@ -21,3 +21,4 @@ requests==2.31.0
 python-dotenv==1.2.2
 RPi.GPIO==0.7.1
 gpiozero==2.0.1
+opencv-python-headless==4.10.0.84

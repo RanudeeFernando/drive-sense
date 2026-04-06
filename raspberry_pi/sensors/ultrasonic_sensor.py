@@ -9,7 +9,7 @@ class UltrasonicSensor(Sensor):
         self.trig_pin = trig_pin
         self.echo_pin = echo_pin
 
-        GPIO.setmode(GPIO.BOARD)
+        GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.trig_pin, GPIO.OUT)
         GPIO.setup(self.echo_pin, GPIO.IN)
 
@@ -59,7 +59,7 @@ class UltrasonicSensor(Sensor):
         return None
     
     # This method is used to detect the presence of a vechicle at the entry point and trigger the camera.
-    def detect_object_in_range(self, min_distance=5, max_distance=10):
+    def detect_object_in_range(self, min_distance=0, max_distance=10):
         distance = self.get_distance()
         print(f"Measured distance: {distance} cm")
 

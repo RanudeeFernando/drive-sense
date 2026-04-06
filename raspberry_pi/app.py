@@ -2,6 +2,7 @@ import time
 import requests
 import os
 import sys
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from sensors.ultrasonic_sensor import UltrasonicSensor
 from sensors.camera_sensor import CameraSensor
@@ -10,18 +11,19 @@ from ml_models.vehicle_classification_model import VehicleClassificationModel
 
 CLOUD_API_URL = "http://34.100.218.79:8000"
 
+
 def main():
     entry_sensor = UltrasonicSensor(
         sensor_id=1,
         name="Entry Sensor",
-        trig_pin=16,
-        echo_pin=18
+        trig_pin=20,
+        echo_pin=21
     )
 
     slot_sensor = UltrasonicSensor(
         sensor_id=2,
         name="Slot Sensor",
-        trig_pin=22,
+        trig_pin=23,
         echo_pin=24
     )
     camera = CameraSensor()
@@ -30,23 +32,24 @@ def main():
     model = VehicleClassificationModel(model_path)
 
     print(" Raspberry Pi Edge Node Started...")
-    
-    for i in range(2):
+
+    for i in range(10):
         print(f"\n--- Entry level ultrasonic sensor acitvated ---")
         if entry_sensor.detect_object_in_range():
             print(" Vehicle Arrived!")
             img_path = camera.capture_image()
-            
+            print(img_path)
+
             # Since the camera sensor dumps images to root, we might want to ensure they exist
             if not os.path.exists(img_path) and os.path.exists(os.path.join("..", img_path)):
                 img_path = os.path.join("..", img_path)
             elif not os.path.exists(img_path):
-                 print(f" Camera capture didn't generate {img_path}")
-                 time.sleep(2)
-                 continue
+                print(f" Camera capture didn't generate {img_path}")
+                time.sleep(2)
+                continue
 
             vehicle_type = model.classify_vehicle(img_path)
-            
+
             print(f" Sending {vehicle_type} classification to cloud API...")
             try:
                 response = requests.post(f"{CLOUD_API_URL}/ticket", json={"vehicle_type": vehicle_type})

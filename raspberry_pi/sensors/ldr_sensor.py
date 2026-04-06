@@ -1,17 +1,15 @@
-# raspberry_pi/sensors/ldr_sensor.py
-
 import RPi.GPIO as GPIO
 import time
 from gpiozero import LED
 
 
 class LDRSensor:
-    def __init__(self, pin=7, led_pin=18, threshold=500):
+    def __init__(self, pin=4, led_pin=18, threshold=500):
         self.pin = pin
         self.threshold = threshold
         self.led = LED(led_pin)
 
-        GPIO.setmode(GPIO.BOARD)
+        # ❌ DO NOT set mode here
 
     def read_resistance(self) -> float:
         GPIO.setup(self.pin, GPIO.OUT)
