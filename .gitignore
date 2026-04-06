@@ -1,5 +1,6 @@
 /venv
 __pycache__/
+node_modules
 
 # Google Cloud credentials - NEVER commit these
 credentials/

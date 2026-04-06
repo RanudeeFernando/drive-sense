@@ -36,3 +36,8 @@ export const getParkingLogs = async () => {
   const res = await API.get("/parking-logs");
   return res.data;
 };
+
+export const adminLogin = async (username, password) => {
+  const res = await API.post("/login", { username, password });
+  return res.data;
+};

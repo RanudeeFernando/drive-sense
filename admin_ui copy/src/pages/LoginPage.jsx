@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { adminLogin } from "../services/api";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -7,20 +8,26 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    const validUser = import.meta.env.VITE_ADMIN_USERNAME;
-    const validPass = import.meta.env.VITE_ADMIN_PASSWORD;
-
-    if (username === validUser && password === validPass) {
-      localStorage.setItem("adminLoggedIn", "true");
-      if (remember) {
-        localStorage.setItem("rememberAdmin", "true");
+    try {
+      const result = await adminLogin(username, password);
+      if (result.success) {
+        localStorage.setItem("adminLoggedIn", "true");
+        if (remember) {
+          localStorage.setItem("rememberAdmin", "true");
+        }
+        navigate("/lighting");
+      } else {
+        alert(result.message || "Invalid username or password");
       }
-      navigate("/lighting");
-    } else {
-      alert("Invalid username or password");
+    } catch (err) {
+        if (err.response && err.response.data && err.response.data.detail) {
+            alert(err.response.data.detail);
+        } else {
+            alert("Login failed. Please check your connection.");
+        }
     }
   };
 
