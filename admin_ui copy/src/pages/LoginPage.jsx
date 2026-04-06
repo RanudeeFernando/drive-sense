@@ -26,8 +26,20 @@ export default function LoginPage() {
 
   return (
     <div className="page login-page">
-      <div className="browser-frame">
-        <div className="browser-header">Login</div>
+      <div className="browser-frame login-frame">
+        <div className="browser-top">
+          <div className="browser-tab">Login</div>
+          <div className="browser-dots">
+            <span></span>
+            <span></span>
+            <span className="active-dot"></span>
+          </div>
+        </div>
+
+        <div className="browser-address">
+          <span className="fake-url">https://www.draw.io</span>
+        </div>
+
         <div className="browser-body">
           <form className="login-card" onSubmit={handleLogin}>
             <label>Username</label>
@@ -35,6 +47,7 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter username"
             />
 
             <label>Password</label>
@@ -42,15 +55,19 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
             />
 
             <div className="checkbox-row">
               <input
+                id="remember"
                 type="checkbox"
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
               />
-              <span>Check me out</span>
+              <label htmlFor="remember" className="checkbox-label">
+                Check me out
+              </label>
             </div>
 
             <button type="submit" className="primary-btn">

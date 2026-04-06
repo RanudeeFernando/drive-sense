@@ -1,0 +1,161 @@
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background: #f3f5f8;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+.browser-frame {
+  width: 920px;
+  min-height: 560px;
+  background: #ffffff;
+  border: 1px solid #cfcfcf;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+
+.browser-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #ddd;
+  background: #f7f7f7;
+}
+
+.browser-tab {
+  font-size: 14px;
+  color: #444;
+}
+
+.browser-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.browser-dots span {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #999;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.active-dot {
+  border-color: #3ba1ff !important;
+}
+
+.browser-address {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e2e2;
+  background: #fafafa;
+}
+
+.fake-url {
+  display: inline-block;
+  width: 100%;
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  border-radius: 4px;
+  color: #777;
+  font-size: 14px;
+}
+
+.content-area {
+  padding: 35px;
+}
+
+.info-bar {
+  width: 88%;
+  margin: 0 auto 16px;
+  border: 1px solid #bfbfbf;
+  padding: 10px 14px;
+  font-size: 15px;
+  color: #555;
+  background: #fff;
+}
+
+.driver-grid {
+  margin: 36px auto 28px;
+  width: 88%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.driver-box {
+  width: 210px;
+  min-height: 160px;
+  border: 1px solid #7c7c7c;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 16px;
+}
+
+.driver-box-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.driver-box-value {
+  font-size: 18px;
+  color: #0d8bff;
+  font-weight: bold;
+  word-break: break-word;
+}
+
+.vehicle-type-box {
+  width: 420px;
+  margin: 0 auto;
+  border: 1px solid #8c8c8c;
+  text-align: center;
+  padding: 14px;
+  font-size: 18px;
+  color: #333;
+  background: #fff;
+}
+
+.button-row {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.primary-btn {
+  border: none;
+  background: #0d8bff;
+  color: white;
+  padding: 12px 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  min-width: 120px;
+}
+
+.primary-btn:hover {
+  background: #0877dc;
+}
+
+.loading-text {
+  text-align: center;
+  margin-top: 40px;
+  color: #666;
+  font-size: 18px;
+}

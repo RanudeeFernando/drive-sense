@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getLightStatus, setManualLight, setAutoMode } from "../services/api";
+import { getLightStatus, setAutoMode, setManualLight } from "../services/api.js";
 
 export default function LightingManagementPage() {
   const [lightStatus, setLightStatus] = useState(false);
@@ -11,11 +11,10 @@ export default function LightingManagementPage() {
   const loadStatus = async () => {
     try {
       const data = await getLightStatus();
-      setLightStatus(data.light_on);
+      setLightStatus(Boolean(data.light_on));
       setAutoModeState(data.mode === "AUTO");
     } catch (error) {
-      console.error(error);
-      alert("Failed to load lighting status");
+      console.error("Failed to load light status:", error);
     } finally {
       setLoading(false);
     }
@@ -29,11 +28,11 @@ export default function LightingManagementPage() {
     try {
       const nextState = !lightStatus;
       const data = await setManualLight(nextState);
-      setLightStatus(data.light_on);
+      setLightStatus(Boolean(data.light_on));
       setAutoModeState(false);
     } catch (error) {
-      console.error(error);
-      alert("Failed to update light status");
+      console.error("Failed to change light status:", error);
+      alert("Failed to change light status");
     }
   };
 
@@ -48,8 +47,8 @@ export default function LightingManagementPage() {
         setAutoModeState(false);
       }
     } catch (error) {
-      console.error(error);
-      alert("Failed to update auto mode");
+      console.error("Failed to change mode:", error);
+      alert("Failed to change mode");
     }
   };
 
@@ -61,7 +60,18 @@ export default function LightingManagementPage() {
   return (
     <div className="page">
       <div className="browser-frame">
-        <div className="browser-header">light system</div>
+        <div className="browser-top">
+          <div className="browser-tab">light system</div>
+          <div className="browser-dots">
+            <span></span>
+            <span></span>
+            <span className="active-dot"></span>
+          </div>
+        </div>
+
+        <div className="browser-address">
+          <span className="fake-url">https://www.draw.io</span>
+        </div>
 
         <div className="tab-bar">
           <button className="tab active">Manage automatic lighting system</button>
@@ -98,7 +108,7 @@ export default function LightingManagementPage() {
 
           <div className="button-row">
             <button className="primary-btn" onClick={handleLogout}>
-              Logout
+              Back
             </button>
           </div>
         </div>

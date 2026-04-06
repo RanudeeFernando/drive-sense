@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getSlots } from "../services/api";
+import { getSlots } from "../services/api.js";
 
 export default function SlotAvailabilityPage() {
   const [slots, setSlots] = useState([]);
@@ -10,10 +10,9 @@ export default function SlotAvailabilityPage() {
     const loadSlots = async () => {
       try {
         const data = await getSlots();
-        setSlots(data);
+        setSlots(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error(error);
-        alert("Failed to load slots");
+        console.error("Failed to load slots:", error);
       }
     };
 
@@ -28,7 +27,18 @@ export default function SlotAvailabilityPage() {
   return (
     <div className="page">
       <div className="browser-frame">
-        <div className="browser-header">slot availability</div>
+        <div className="browser-top">
+          <div className="browser-tab">slot availability</div>
+          <div className="browser-dots">
+            <span></span>
+            <span></span>
+            <span className="active-dot"></span>
+          </div>
+        </div>
+
+        <div className="browser-address">
+          <span className="fake-url">https://www.draw.io</span>
+        </div>
 
         <div className="tab-bar">
           <Link className="tab" to="/lighting">
@@ -44,21 +54,25 @@ export default function SlotAvailabilityPage() {
           <h2 className="section-title">Slot Availability</h2>
 
           <div className="slots-grid">
-            {slots.map((slot) => (
-              <div
-                key={slot.id}
-                className={`slot-box ${slot.occupied ? "occupied" : "available"}`}
-              >
-                <div>{slot.slot_id || slot.id}</div>
-                <div>{slot.slot_type}</div>
-                <div>{slot.status}</div>
-              </div>
-            ))}
+            {slots.length > 0 ? (
+              slots.map((slot) => (
+                <div
+                  key={slot.id}
+                  className={`slot-box ${slot.occupied ? "occupied" : "available"}`}
+                >
+                  <div className="slot-number">{slot.slot_id || slot.id}</div>
+                  <div className="slot-type">{slot.slot_type || "-"}</div>
+                  <div className="slot-status">{slot.status || "-"}</div>
+                </div>
+              ))
+            ) : (
+              <p className="empty-text">No slot data available</p>
+            )}
           </div>
 
           <div className="button-row">
             <button className="primary-btn" onClick={handleLogout}>
-              Logout
+              Back
             </button>
           </div>
         </div>
