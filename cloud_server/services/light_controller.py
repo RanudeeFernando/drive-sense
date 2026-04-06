@@ -21,3 +21,13 @@ class LightController:
             "status": "success",
             "light_on": self.light_on
         }
+
+    def turn_on(self):
+        """Manually turn on the lighting system."""
+        self.light_on = True
+        print("Light manually turned ON")
+
+    def turn_off(self):
+        """Manually turn off the lighting system."""
+        self.light_on = False
+        print("Light manually turned OFF")

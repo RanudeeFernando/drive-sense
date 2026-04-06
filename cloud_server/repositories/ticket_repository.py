@@ -51,9 +51,9 @@ class TicketRepository:
         )
 
     def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> str:
-        doc_ref = self.collection.document()
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         ticket_id = f"DST-{timestamp}"
+        doc_ref = self.collection.document(ticket_id)
 
         ticket = Ticket(
             ticket_id=ticket_id,
@@ -68,6 +68,7 @@ class TicketRepository:
 
         doc_ref.set(ticket.to_dict())
         return ticket_id
+
 
     def get_ticket_by_id(self, ticket_id: str):
         doc = self.collection.document(ticket_id).get()
@@ -108,3 +109,8 @@ class TicketRepository:
             "status": "closed"
         })
         return True
+
+    def get_all_tickets(self):
+        """Return all tickets from Firestore, ordered by entry_time descending."""
+        docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()
+        return [self._doc_to_ticket(doc) for doc in docs]
