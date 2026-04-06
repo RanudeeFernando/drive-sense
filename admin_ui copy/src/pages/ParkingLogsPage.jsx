@@ -75,7 +75,7 @@ export default function ParkingLogsPage() {
                     <td>{log.entry_time}</td>
                     <td>{log.exit_time || "-"}</td>
                     <td>{log.status}</td>
-                    <td>{log.amount ?? "-"}</td>
+                    <td>{log.price ?? "-"}</td>
                   </tr>
                 ))
               ) : (

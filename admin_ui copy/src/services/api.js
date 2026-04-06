@@ -28,12 +28,12 @@ export const updateLightThreshold = async (threshold) => {
 };
 
 export const getSlots = async () => {
-  const res = await API.get("/slots");
+  const res = await API.get("/slots_availability");
   return res.data;
 };
 
 export const getParkingLogs = async () => {
-  const res = await API.get("/parking-logs");
+  const res = await API.get("/parking_logs");
   return res.data;
 };
 

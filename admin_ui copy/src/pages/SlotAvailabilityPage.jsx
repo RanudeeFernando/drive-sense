@@ -57,12 +57,11 @@ export default function SlotAvailabilityPage() {
             {slots.length > 0 ? (
               slots.map((slot) => (
                 <div
-                  key={slot.id}
-                  className={`slot-box ${slot.occupied ? "occupied" : "available"}`}
+                  key={slot.slot_id}
+                  className={`slot-box ${slot.is_occupied ? "occupied" : "available"}`}
                 >
-                  <div className="slot-number">{slot.slot_id || slot.id}</div>
-                  <div className="slot-type">{slot.slot_type || "-"}</div>
-                  <div className="slot-status">{slot.status || "-"}</div>
+                  <div className="slot-number">{slot.slot_id}</div>
+                  <div className="slot-status">{slot.is_occupied ? "Occupied" : "Available"}</div>
                 </div>
               ))
             ) : (

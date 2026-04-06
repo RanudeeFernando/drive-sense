@@ -84,7 +84,7 @@ def admin_login(req: AdminLoginRequest):
     return result
 
 
-@router.get("/slots_vailability")
+@router.get("/slots_availability")
 def get_slot_availability():
     slots = slot_repository.get_all_slots()
     return [
