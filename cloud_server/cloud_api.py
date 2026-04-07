@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 from cloud_server.services.slot_manager_service import SlotManagerService
 from cloud_server.services.ticket_manager_service import TicketManagerService
-from cloud_server.services.light_controller import LightController
+from cloud_server.services.light_manager_service import LightManagerService
 
 from cloud_server.repositories.slot_repository import SlotRepository
 from cloud_server.repositories.ticket_repository import TicketRepository
@@ -25,10 +25,10 @@ ticket_manager_service = TicketManagerService(
 )
 
 # Keep light separately for now
-light_controller = LightController()
+light_manager_service = LightManagerService()
 
 # Initialize admin service
-admin_service = AdminService(light_controller=light_controller)
+admin_service = AdminService(light_manager_service=light_manager_service)
 
 
 # Pydantic schemas for request bodies
@@ -73,7 +73,7 @@ def get_receipt(req: ReceiptRequest):
 
 @router.post("/lighting")
 def control_light(req: LightRequest):
-    return light_controller.process_light(req.light_on)
+    return light_manager_service.process_light(req.light_on)
 
 
 @router.post("/login")

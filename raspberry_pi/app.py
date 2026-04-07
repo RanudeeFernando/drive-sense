@@ -16,14 +16,14 @@ def main():
     entry_sensor = UltrasonicSensor(
         sensor_id=1,
         name="Entry Sensor",
-        trig_pin=20,
-        echo_pin=21
+        trig_pin=16,
+        echo_pin=18
     )
 
     slot_sensor = UltrasonicSensor(
         sensor_id=2,
         name="Slot Sensor",
-        trig_pin=23,
+        trig_pin=22,
         echo_pin=24
     )
     camera = CameraSensor()
@@ -33,7 +33,7 @@ def main():
 
     print(" Raspberry Pi Edge Node Started...")
 
-    for i in range(10):
+    for i in range(2):
         print(f"\n--- Entry level ultrasonic sensor acitvated ---")
         if entry_sensor.detect_object_in_range():
             print(" Vehicle Arrived!")
@@ -78,29 +78,40 @@ def main():
                 print(f"Failed to reach cloud API: {e}")
 
         # Check light levels
-        resistance = ldr_sensor.read_resistance()
-        print(f"--- LDR sensor: {resistance} Ω ---")
-
-        light_status = ldr_sensor.is_light(resistance)
-        ldr_sensor.control_led(light_status)
-
         try:
-            light_resp = requests.post(
-                f"{CLOUD_API_URL}/lighting",
-                json={"light_on": light_status}
-            )
-
-            if light_resp.status_code == 200:
-                is_on = light_resp.json().get("light_on", False)
-                if is_on:
-                    print(" [PI RELAY] Turning LED ON!")
-                else:
-                    print(" [PI RELAY] Turning LED OFF!")
-            else:
-                print(f" Cloud Error: {light_resp.status_code}")
-
+            status_resp = requests.get(f"{CLOUD_API_URL}/ldr-status")
+            ldr_enabled = status_resp.json().get("enabled", True) if status_resp.status_code == 200 else True
         except Exception as e:
-            print(f" Failed to reach cloud API: {e}")
+            print(f" Failed to fetch LDR status: {e}")
+            ldr_enabled = True
+
+        if ldr_enabled:
+            resistance = ldr_sensor.read_resistance()
+            print(f"--- LDR sensor: {resistance} Ω ---")
+
+            light_status = ldr_sensor.is_light(resistance)
+            ldr_sensor.control_led(light_status)
+
+            try:
+                light_resp = requests.post(
+                    f"{CLOUD_API_URL}/lighting",
+                    json={"light_on": light_status}
+                )
+
+                if light_resp.status_code == 200:
+                    is_on = light_resp.json().get("light_on", False)
+                    if is_on:
+                        print(" [PI RELAY] Turning LED ON!")
+                    else:
+                        print(" [PI RELAY] Turning LED OFF!")
+                else:
+                    print(f" Cloud Error: {light_resp.status_code}")
+
+            except Exception as e:
+                print(f" Failed to reach cloud API: {e}")
+        else:
+            print("--- LDR sensor: Disabled by Admin ---")
+            ldr_sensor.control_led(False)
 
         time.sleep(2)
 

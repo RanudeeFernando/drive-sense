@@ -4,10 +4,10 @@ from cloud_server.repositories.settings_repository import SettingsRepository
 
 
 class AdminService:
-    def __init__(self, light_controller):
+    def __init__(self, light_manager_service):
         self.admin_repository = AdminRepository()
         self.settings_repository = SettingsRepository()
-        self.light_controller = light_controller
+        self.light_manager_service = light_manager_service
         # Placeholder admin instance if needed for specific core logic
         # Admin(admin_id=1, username="admin", password="password")
         self.admin = None
@@ -21,9 +21,9 @@ class AdminService:
     def toggle_light(self, turn_on: bool):
         """Existing logic to control the light through the light controller."""
         if turn_on:
-            self.light_controller.turn_on()
+            self.light_manager_service.turn_on()
         else:
-            self.light_controller.turn_off()
+            self.light_manager_service.turn_off()
 
     def set_ldr_status(self, enabled: bool) -> dict:
         """Set the LDR enabled status in Firestore and update the lighting system accordingly."""
@@ -31,7 +31,7 @@ class AdminService:
         
         # If disabling, ensure light is also turned off manually
         if not enabled:
-            self.light_controller.turn_off()
+            self.light_manager_service.turn_off()
             
         return {
             "success": True, 
