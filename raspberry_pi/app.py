@@ -1,6 +1,7 @@
 import time
 import requests
 import os
+import threading
 import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -12,82 +13,90 @@ from ml_models.vehicle_classification_model import VehicleClassificationModel
 CLOUD_API_URL = "http://34.100.218.79:8000"
 
 
-def main():
-    entry_sensor = UltrasonicSensor(
-        sensor_id=1,
-        name="Entry Sensor",
-        trig_pin=16,
-        echo_pin=18
-    )
+# ---------------- ENTRY PROCESS ----------------
+def entry_process(entry_sensor, camera, model):
+    while True:
+        print("\n--- Entry Sensor Activated ---")
 
-    slot_sensor = UltrasonicSensor(
-        sensor_id=2,
-        name="Slot Sensor",
-        trig_pin=22,
-        echo_pin=24
-    )
-    camera = CameraSensor()
-    ldr_sensor = LDRSensor()
-    model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model_int8.tflite")
-    model = VehicleClassificationModel(model_path)
-
-    print(" Raspberry Pi Edge Node Started...")
-
-    for i in range(2):
-        print(f"\n--- Entry level ultrasonic sensor acitvated ---")
         if entry_sensor.detect_object_in_range():
-            print(" Vehicle Arrived!")
+            print("Vehicle Arrived!")
+
             img_path = camera.capture_image()
             print(img_path)
 
-            # Since the camera sensor dumps images to root, we might want to ensure they exist
+            # Fix path issue
             if not os.path.exists(img_path) and os.path.exists(os.path.join("..", img_path)):
                 img_path = os.path.join("..", img_path)
             elif not os.path.exists(img_path):
-                print(f" Camera capture didn't generate {img_path}")
+                print(f"Camera capture didn't generate {img_path}")
                 time.sleep(2)
                 continue
 
             vehicle_type = model.classify_vehicle(img_path)
 
-            print(f" Sending {vehicle_type} classification to cloud API...")
-            try:
-                response = requests.post(f"{CLOUD_API_URL}/ticket", json={"vehicle_type": vehicle_type})
-                if response.status_code == 200:
-                    print(f" Cloud Response: {response.json()}")
-                else:
-                    print(f" Cloud Error: {response.status_code} - {response.text}")
-            except Exception as e:
-                print(f" Failed to reach cloud API: {e}")
+            print(f"Sending {vehicle_type} to cloud API...")
 
-        # Check for exiting vehicles
-        print(f"--- Exit level ultrasonic sensor activated ---")
-        distance = slot_sensor.get_distance()
-        if distance is not None:
             try:
-                print(f"Sending exit distance {distance} to cloud...")
                 response = requests.post(
-                    f"{CLOUD_API_URL}/release-slot",
-                    json={"distance": distance}
+                    f"{CLOUD_API_URL}/ticket",
+                    json={"vehicle_type": vehicle_type}
                 )
+
                 if response.status_code == 200:
                     print(f"Cloud Response: {response.json()}")
                 else:
                     print(f"Cloud Error: {response.status_code} - {response.text}")
+
             except Exception as e:
                 print(f"Failed to reach cloud API: {e}")
 
-        # Check light levels
+        time.sleep(1)
+
+
+# ---------------- EXIT PROCESS ----------------
+def exit_process(slot_sensor):
+    while True:
+        print("\n--- Exit Sensor Activated ---")
+
+        distance = slot_sensor.get_distance()
+        print(f"Slot Sensor Distance: {distance} cm")
+
+        if distance is not None:
+            try:
+                print(f"Sending exit distance {distance} to cloud...")
+
+                response = requests.post(
+                    f"{CLOUD_API_URL}/release-slot",
+                    json={"distance": distance}
+                )
+
+                if response.status_code == 200:
+                    print(f"Cloud Response: {response.json()}")
+                else:
+                    print(f"Cloud Error: {response.status_code} - {response.text}")
+
+            except Exception as e:
+                print(f"Failed to reach cloud API: {e}")
+
+        time.sleep(1)
+
+
+# ---------------- LIGHTING PROCESS ----------------
+def lighting_process(ldr_sensor):
+    while True:
+        print("\n--- LDR Process Running ---")
+
+        # 🔹 Check admin control from cloud
         try:
             status_resp = requests.get(f"{CLOUD_API_URL}/ldr-status")
             ldr_enabled = status_resp.json().get("enabled", True) if status_resp.status_code == 200 else True
         except Exception as e:
-            print(f" Failed to fetch LDR status: {e}")
+            print(f"Failed to fetch LDR status: {e}")
             ldr_enabled = True
 
         if ldr_enabled:
             resistance = ldr_sensor.read_resistance()
-            print(f"--- LDR sensor: {resistance} Ω ---")
+            print(f"LDR Resistance: {resistance} Ω")
 
             light_status = ldr_sensor.is_light(resistance)
             ldr_sensor.control_led(light_status)
@@ -100,20 +109,50 @@ def main():
 
                 if light_resp.status_code == 200:
                     is_on = light_resp.json().get("light_on", False)
+
                     if is_on:
-                        print(" [PI RELAY] Turning LED ON!")
+                        print("[PI RELAY] Turning LED ON!")
                     else:
-                        print(" [PI RELAY] Turning LED OFF!")
+                        print("[PI RELAY] Turning LED OFF!")
                 else:
-                    print(f" Cloud Error: {light_resp.status_code}")
+                    print(f"Cloud Error: {light_resp.status_code}")
 
             except Exception as e:
-                print(f" Failed to reach cloud API: {e}")
+                print(f"Failed to reach cloud API: {e}")
+
         else:
-            print("--- LDR sensor: Disabled by Admin ---")
+            print("LDR Disabled by Admin")
             ldr_sensor.control_led(False)
 
-        time.sleep(2)
+        time.sleep(5)
+
+
+# ---------------- MAIN ----------------
+def main():
+    entry_sensor = UltrasonicSensor(1, "Entry Sensor", 16, 18)
+    slot_sensor = UltrasonicSensor(2, "Slot Sensor", 22, 24)
+    camera = CameraSensor()
+    ldr_sensor = LDRSensor()
+
+    model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model_int8.tflite")
+    model = VehicleClassificationModel(model_path)
+
+    print("Raspberry Pi Edge Node Started...")
+
+    # Create threads
+    entry_thread = threading.Thread(target=entry_process, args=(entry_sensor, camera, model))
+    exit_thread = threading.Thread(target=exit_process, args=(slot_sensor,))
+    light_thread = threading.Thread(target=lighting_process, args=(ldr_sensor,))
+
+    # Start threads
+    entry_thread.start()
+    exit_thread.start()
+    light_thread.start()
+
+    # Keep program alive forever
+    while True:
+        time.sleep(10)
+
 
 if __name__ == "__main__":
     main()

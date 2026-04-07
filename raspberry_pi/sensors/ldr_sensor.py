@@ -9,7 +9,7 @@ class LDRSensor:
         self.threshold = threshold
         self.led = LED(led_pin)
 
-        # ❌ DO NOT set mode here
+        
 
     def read_resistance(self) -> float:
         GPIO.setup(self.pin, GPIO.OUT)
@@ -27,7 +27,7 @@ class LDRSensor:
         return resistance
 
     def is_light(self, resistance):
-        return resistance < self.threshold
+        return resistance > self.threshold
 
     def control_led(self, light_on):
         if light_on:
