@@ -4,3 +4,7 @@ node_modules
 
 # Google Cloud credentials - NEVER commit these
 credentials/
+model_train/dataset
+vehicle_model.h5
+vehicle_model_int8.tflite
+
