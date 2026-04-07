@@ -7,7 +7,7 @@ from cloud_server.services.light_manager_service import LightManagerService
 
 from cloud_server.repositories.slot_repository import SlotRepository
 from cloud_server.repositories.ticket_repository import TicketRepository
-
+from cloud_server.repositories.light_repository import LightRepository
 from cloud_server.services.admin_service import AdminService
 from cloud_server.data_models.vehicle_type import VehicleType
 
@@ -138,3 +138,9 @@ def get_latest_driver_view():
         "entry_time": latest_ticket.get_entry_time(),
         "pin_code": latest_ticket.get_pin_code()
     }
+
+@router.get("/light-logs")
+def get_light_logs():
+    
+    repo = LightRepository()
+    return repo.get_all_logs()

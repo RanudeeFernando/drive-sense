@@ -46,7 +46,7 @@ export default function DriverViewPage() {
         </div>
 
         <div className="browser-address">
-          <span className="fake-url">https://www.draw.io</span>
+          <span className="fake-url">https://www.drive-sense.io</span>
         </div>
 
         <div className="content-area">

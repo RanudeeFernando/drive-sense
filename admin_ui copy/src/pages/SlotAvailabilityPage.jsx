@@ -37,7 +37,7 @@ export default function SlotAvailabilityPage() {
         </div>
 
         <div className="browser-address">
-          <span className="fake-url">https://www.draw.io</span>
+          <span className="fake-url">https://www.drive-sense.io</span>
         </div>
 
         <div className="tab-bar">

@@ -1,20 +1,82 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getLightStatus, setAutoMode, setManualLight } from "../services/api.js";
+import { getLightStatus, setAutoMode, setManualLight, getLDRStatus, setLDRControl, getLightLogs } from "../services/api.js";
 
 export default function LightingManagementPage() {
   const [lightStatus, setLightStatus] = useState(false);
   const [autoMode, setAutoModeState] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState([]);
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [rowLimit, setRowLimit] = useState("5");
   const navigate = useNavigate();
+
+  const loadLogs = async () => {
+    try {
+      const data = await getLightLogs();
+      
+      // Filter by date if selected
+      let filteredByDate = [...data];
+      if (filterDate) {
+        filteredByDate = data.filter(entry => entry.timestamp.startsWith(filterDate));
+      }
+
+      // Sort by timestamp ascending to apply deduplication logic
+      const sortedByTime = filteredByDate.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      
+      const filtered = [];
+      let lastStatus = null;
+      
+      for (const entry of sortedByTime) {
+        if (entry.status !== lastStatus) {
+          filtered.push(entry);
+          lastStatus = entry.status;
+        }
+      }
+      
+      const deduplicated = filtered.reverse();
+      
+      // Apply row limit
+      let limitedLogs = deduplicated;
+      if (rowLimit !== "All") {
+        limitedLogs = deduplicated.slice(0, parseInt(rowLimit));
+      }
+      
+      setLogs(limitedLogs);
+
+      // Update lightStatus based on the latest log entry
+      if (deduplicated.length > 0) {
+        setLightStatus(deduplicated[0].status === "ON");
+      }
+    } catch (error) {
+      console.error("Failed to load light logs:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadLogs();
+  }, [filterDate, rowLimit]);
 
   const loadStatus = async () => {
     try {
-      const data = await getLightStatus();
-      setLightStatus(Boolean(data.light_on));
-      setAutoModeState(data.mode === "AUTO");
+      // Load LDR status
+      const ldrData = await getLDRStatus();
+      setAutoModeState(Boolean(ldrData.enabled));
+      
+      // Load logs and sync lightStatus
+      await loadLogs();
+
+      // Attempt to load general light status if available (fallback)
+      try {
+        const data = await getLightStatus();
+        if (data && data.light_on !== undefined) {
+          setLightStatus(Boolean(data.light_on));
+        }
+      } catch (err) {
+        // Fallback already handled by loadLogs
+      }
     } catch (error) {
-      console.error("Failed to load light status:", error);
+      console.error("Failed to load status:", error);
     } finally {
       setLoading(false);
     }
@@ -30,6 +92,7 @@ export default function LightingManagementPage() {
       const data = await setManualLight(nextState);
       setLightStatus(Boolean(data.light_on));
       setAutoModeState(false);
+      await loadStatus(); // Refresh logs after manual toggle
     } catch (error) {
       console.error("Failed to change light status:", error);
       alert("Failed to change light status");
@@ -38,17 +101,16 @@ export default function LightingManagementPage() {
 
   const handleAutoToggle = async () => {
     try {
-      if (!autoMode) {
-        await setAutoMode();
-        setAutoModeState(true);
-        await loadStatus();
-      } else {
-        await setManualLight(lightStatus);
-        setAutoModeState(false);
-      }
+      setLoading(true);
+      const nextState = !autoMode;
+      await setLDRControl(nextState);
+      setAutoModeState(nextState);
+      await loadStatus();
     } catch (error) {
-      console.error("Failed to change mode:", error);
-      alert("Failed to change mode");
+      console.error("Failed to change LDR mode:", error);
+      alert("Failed to change LDR mode");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,7 +132,7 @@ export default function LightingManagementPage() {
         </div>
 
         <div className="browser-address">
-          <span className="fake-url">https://www.draw.io</span>
+          <span className="fake-url">https://www.drive-sense.io</span>
         </div>
 
         <div className="tab-bar">
@@ -97,16 +159,70 @@ export default function LightingManagementPage() {
 
           <div className="setting-row">
             <span>Automatic Lighting System:</span>
-            <button
-              className={`toggle-btn ${autoMode ? "on" : "off"}`}
-              onClick={handleAutoToggle}
-              disabled={loading}
-            >
-              {autoMode ? "Enable" : "Disable"}
-            </button>
+            <label className={`switch ${loading ? "disabled" : ""}`}>
+              <input
+                type="checkbox"
+                checked={autoMode}
+                onChange={handleAutoToggle}
+                disabled={loading}
+              />
+              <span className="slider"></span>
+            </label>
           </div>
 
-          <div className="button-row">
+          <div className="logs-section" style={{ marginTop: "40px" }}>
+            <h3 style={{ marginBottom: "15px", textAlign: "center", color: "#444" }}>Light Status Activity Logs</h3>
+            
+            <div className="filter-controls" style={{ marginBottom: "15px", display: "flex", justifyContent: "center", gap: "20px", alignItems: "center" }}>
+              <div>
+                <label style={{ fontSize: "14px", marginRight: "8px" }}>Filter Date:</label>
+                <input 
+                  type="date" 
+                  value={filterDate} 
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  style={{ padding: "4px 8px", border: "1px solid #ccc", borderRadius: "4px" }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: "14px", marginRight: "8px" }}>Rows:</label>
+                <select 
+                  value={rowLimit} 
+                  onChange={(e) => setRowLimit(e.target.value)}
+                  style={{ padding: "4px 8px", border: "1px solid #ccc", borderRadius: "4px" }}
+                >
+                  <option value="All">All</option>
+                  <option value="10">10</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+            </div>
+
+            <table className="logs-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log, index) => (
+                  <tr key={index}>
+                    <td>{log.timestamp}</td>
+                    <td style={{ color: log.status === "ON" ? "#28a745" : "#7a7a7a", fontWeight: "bold" }}>
+                      {log.status}
+                    </td>
+                  </tr>
+                ))}
+                {logs.length === 0 && (
+                  <tr>
+                    <td colSpan="2" className="empty-text">No activity logs recorded yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="button-row" style={{ marginTop: "30px" }}>
             <button className="primary-btn" onClick={handleLogout}>
               Back
             </button>

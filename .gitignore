@@ -4,5 +4,3 @@ node_modules
 
 # Google Cloud credentials - NEVER commit these
 credentials/
-*.json
-serviceAccountKey.json

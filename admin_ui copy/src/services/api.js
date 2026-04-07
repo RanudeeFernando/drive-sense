@@ -22,8 +22,23 @@ export const setAutoMode = async () => {
   return res.data;
 };
 
+export const getLDRStatus = async () => {
+  const res = await API.get("/ldr-status");
+  return res.data;
+};
+
+export const setLDRControl = async (enabled) => {
+  const res = await API.post("/ldr-control", { enabled });
+  return res.data;
+};
+
 export const updateLightThreshold = async (threshold) => {
   const res = await API.post("/light/threshold", { threshold });
+  return res.data;
+};
+
+export const getLightLogs = async () => {
+  const res = await API.get("/light-logs");
   return res.data;
 };
 
