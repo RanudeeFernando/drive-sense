@@ -118,3 +118,23 @@ def set_ldr_control(req: LDRControlRequest):
 @router.get("/ldr-status")
 def get_ldr_status():
     return {"enabled": admin_service.get_ldr_status()}
+
+
+@router.get("/driver-view/latest")
+def get_latest_driver_view():
+    tickets = ticket_repository.get_all_tickets()
+
+    if not tickets:
+        raise HTTPException(status_code=404, detail="No tickets found")
+
+    latest_ticket = tickets[0]
+
+    return {
+        "system_name": "Drive Sense AI",
+        "welcome_message": "Welcome to the Smart Vehicle Parking System",
+        "ticket_id": latest_ticket.get_ticket_id(),
+        "slot_id": latest_ticket.get_slot_id(),
+        "vehicle_type": latest_ticket.get_vehicle_type().value,
+        "entry_time": latest_ticket.get_entry_time(),
+        "pin_code": latest_ticket.get_pin_code()
+    }

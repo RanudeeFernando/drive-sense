@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { getLatestDriverInfo } from "../services/api.js";
 
@@ -9,6 +8,8 @@ export default function DriverViewPage() {
     ticket_id: "",
     slot_id: "",
     vehicle_type: "",
+    entry_time: "",
+    pin_code: "",
   });
 
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,16 @@ export default function DriverViewPage() {
               <div className="vehicle-type-box">
                 <span>Vehicle Type: </span>
                 <strong>{data.vehicle_type}</strong>
+              </div>
+
+              <div className="vehicle-type-box">
+                <span>Entry Time: </span>
+                <strong>{data.entry_time}</strong>
+              </div>
+
+              <div className="vehicle-type-box">
+                <span>PIN Code: </span>
+                <strong>{data.pin_code}</strong>
               </div>
             </>
           )}

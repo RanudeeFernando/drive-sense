@@ -1,5 +1,6 @@
-# cloud_server/repositories/ticket_repository.py
+
 from datetime import datetime
+import random
 
 from cloud_server.cloud_db.firestore_client import get_db
 from cloud_server.data_models.ticket import Ticket
@@ -16,10 +17,6 @@ class TicketRepository:
 
     @staticmethod
     def _build_fallback_slot(slot_id: int, vehicle_type: VehicleType) -> ParkingSlot:
-        """
-        Fallback slot object in case slot details cannot be fetched.
-        Keeps Ticket model consistent.
-        """
         return ParkingSlot(
             slot_id=slot_id,
             slot_type=vehicle_type,
@@ -27,6 +24,10 @@ class TicketRepository:
             slot_width=0.0,
             is_occupied=False
         )
+
+    @staticmethod
+    def generate_pin_code() -> str:
+        return f"{random.randint(0, 9999):04d}"
 
     def _doc_to_ticket(self, doc) -> Ticket:
         data = doc.to_dict()
@@ -47,28 +48,41 @@ class TicketRepository:
             exit_time=data.get("exit_time", ""),
             duration_minutes=float(data.get("duration_minutes", 0)),
             price=float(data.get("price", 0)),
-            status=data.get("status", "active")
+            status=data.get("status", "active"),
+            pin_code=data.get("pin_code", ""),
+            pin_status=data.get("pin_status", "active")
         )
 
-    def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> str:
+    def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> dict:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         ticket_id = f"DST-{timestamp}"
         doc_ref = self.collection.document(ticket_id)
+
+        pin_code = self.generate_pin_code()
+        entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         ticket = Ticket(
             ticket_id=ticket_id,
             parking_slot=parking_slot,
             vehicle_type=vehicle_type,
-            entry_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            entry_time=entry_time,
             exit_time="",
             duration_minutes=0,
             price=0,
-            status="active"
+            status="active",
+            pin_code=pin_code,
+            pin_status="active"
         )
 
         doc_ref.set(ticket.to_dict())
-        return ticket_id
 
+        return {
+            "ticket_id": ticket_id,
+            "pin_code": pin_code,
+            "entry_time": entry_time,
+            "slot_id": parking_slot.get_slot_id(),
+            "vehicle_type": vehicle_type.value
+        }
 
     def get_ticket_by_id(self, ticket_id: str):
         doc = self.collection.document(ticket_id).get()
@@ -106,11 +120,11 @@ class TicketRepository:
             "exit_time": exit_time.strftime("%Y-%m-%d %H:%M:%S"),
             "duration_minutes": round(duration_minutes, 2),
             "price": price,
-            "status": "closed"
+            "status": "closed",
+            "pin_status": "expired"
         })
         return True
 
     def get_all_tickets(self):
-        """Return all tickets from Firestore, ordered by entry_time descending."""
         docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()
         return [self._doc_to_ticket(doc) for doc in docs]

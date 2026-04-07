@@ -13,7 +13,9 @@ class Ticket:
         exit_time: str = "",
         duration_minutes: float = 0,
         price: float = 0,
-        status: str = "active"
+        status: str = "active",
+        pin_code: str = "",
+        pin_status: str = "active"
     ):
         self._ticket_id = ticket_id
         self._parking_slot = parking_slot
@@ -23,6 +25,8 @@ class Ticket:
         self._duration_minutes = duration_minutes
         self._price = price
         self._status = status
+        self._pin_code = pin_code
+        self._pin_status = pin_status
 
     def get_ticket_id(self) -> str:
         return self._ticket_id
@@ -75,6 +79,20 @@ class Ticket:
     def set_status(self, status: str) -> None:
         self._status = status
 
+    def get_pin_code(self) -> str:
+        return self._pin_code
+
+    def set_pin_code(self, pin_code: str) -> None:
+        self._pin_code = pin_code
+
+    def get_pin_status(self) -> str:
+        return self._pin_status
+
+    def set_pin_status(self, pin_status: str) -> None:
+        self._pin_status = pin_status
+
+        
+
     def to_dict(self) -> dict:
         return {
             "ticket_id": self._ticket_id,
@@ -84,5 +102,7 @@ class Ticket:
             "exit_time": self._exit_time,
             "duration_minutes": self._duration_minutes,
             "price": self._price,
-            "status": self._status
+            "status": self._status,
+            "pin_code": self._pin_code,
+            "pin_status": self._pin_status
         }
