@@ -54,7 +54,8 @@ class SlotRepository:
         doc_ref = self.collection.document(str(slot_id))
         doc = doc_ref.get()
 
-        if not doc.exists:
+        data = doc.to_dict()
+        if not data.get("is_occupied", False):
             return False
 
         doc_ref.update({"is_occupied": False})

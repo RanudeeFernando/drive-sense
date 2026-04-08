@@ -26,6 +26,16 @@ class SlotManagerService:
                 "message": "Invalid distance mapping"
             }
 
+        #  ADD THIS BLOCK (VERY IMPORTANT)
+        if not slot.get_slot_status():  # slot already free
+            print(f"Slot {slot.get_slot_id()} is already free  ignoring false trigger")
+            return {
+                "status": "ignored",
+                "slot_id": slot.get_slot_id(),
+                "message": "Slot already free (false trigger ignored)"
+            }
+
+        #  Only release if occupied
         success = self.slot_repository.release_slot(slot.get_slot_id())
 
         if not success:

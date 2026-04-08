@@ -129,8 +129,8 @@ def lighting_process(ldr_sensor):
 
 # ---------------- MAIN ----------------
 def main():
-    entry_sensor = UltrasonicSensor(1, "Entry Sensor", 16, 18)
-    slot_sensor = UltrasonicSensor(2, "Slot Sensor", 22, 24)
+    entry_sensor = UltrasonicSensor(1, "Entry Sensor", 20, 21)
+    slot_sensor = UltrasonicSensor(2, "Slot Sensor", 23, 24)
     camera = CameraSensor()
     ldr_sensor = LDRSensor()
 
