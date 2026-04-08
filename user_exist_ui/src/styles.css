@@ -167,3 +167,144 @@ body {
   color: #666;
   font-size: 18px;
 }
+
+.checkout-frame {
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.checkout-content {
+  flex: 1;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.checkout-title {
+  color: #38bdf8;
+  margin-bottom: 10px;
+  font-size: 28px;
+}
+
+.checkout-subtitle {
+  color: #94a3b8;
+  margin-bottom: 30px;
+}
+
+.pin-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pin-input {
+  width: 200px;
+  font-size: 40px;
+  letter-spacing: 15px;
+  text-align: center;
+  padding: 15px;
+  border-radius: 12px;
+  border: 2px solid #334155;
+  background-color: #1e293b;
+  color: #f8fafc;
+  margin-bottom: 20px;
+  outline: none;
+}
+
+.pin-error {
+  color: #ef4444;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.checkout-submit-btn {
+  padding: 12px 40px;
+  font-size: 18px;
+  width: 100%;
+  max-width: 250px;
+}
+
+.receipt-header {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #f8fafc;
+}
+
+.receipt-body-container {
+  border-radius: 16px;
+  padding: 18px;
+  background: #1e293b;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.receipt-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.receipt-detail-total {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+  font-size: 18px;
+}
+
+.receipt-footer-text {
+  margin-top: 18px;
+  text-align: center;
+  color: #cbd5e1;
+  font-size: 15px;
+}
+
+.pay-btn-wrapper {
+  margin-top: 22px;
+}
+
+.pay-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+}
+
+.success-container {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-icon {
+  font-size: 60px;
+  margin-bottom: 16px;
+}
+
+.success-title {
+  color: #22c55e;
+  margin-bottom: 12px;
+  font-size: 28px;
+}
+
+.success-msg {
+  color: #cbd5e1;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.success-sub-msg {
+  color: #94a3b8;
+  margin-top: 14px;
+  font-size: 14px;
+}

@@ -88,3 +88,46 @@ class TicketManagerService:
             "price": price,
             "message": "E-receipt generated successfully"
         }
+
+    def process_exit_by_pin(self, pin_code: str) -> dict:
+        ticket = self.ticket_repository.get_active_ticket_by_pin(pin_code)
+
+        if ticket is None:
+            return {
+                "status": "failed",
+                "message": f"No active ticket found with PIN: {pin_code}"
+            }
+
+        slot_id = ticket.get_slot_id()
+
+        # NOTE: We do NOT release the slot here. 
+        # The slot is released by the slot sensor physically via /release-slot
+
+        entry_time = datetime.strptime(ticket.get_entry_time(), "%Y-%m-%d %H:%M:%S")
+        exit_time = datetime.now()
+
+        duration_minutes = (exit_time - entry_time).total_seconds() / 60.0
+        duration_hours = duration_minutes / 60.0
+
+        rate_per_hour = PARKING_RATES[ticket.get_vehicle_type()]
+        price = round(duration_hours * rate_per_hour, 2)
+
+        self.ticket_repository.update_ticket_on_exit(
+            ticket_id=ticket.get_ticket_id(),
+            exit_time=exit_time,
+            duration_minutes=duration_minutes,
+            price=price
+        )
+
+        return {
+            "status": "success",
+            "ticket_id": ticket.get_ticket_id(),
+            "slot_id": slot_id,
+            "vehicle_type": ticket.get_vehicle_type().value,
+            "entry_time": ticket.get_entry_time(),
+            "exit_time": exit_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "duration_minutes": round(duration_minutes, 2),
+            "duration_hours": round(duration_hours, 2),
+            "price": price,
+            "message": "Exit processed successfully"
+        }

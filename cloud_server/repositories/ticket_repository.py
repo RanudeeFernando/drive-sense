@@ -25,9 +25,12 @@ class TicketRepository:
             is_occupied=False
         )
 
-    @staticmethod
-    def generate_pin_code() -> str:
-        return f"{random.randint(0, 9999):04d}"
+    def generate_pin_code(self) -> str:
+        while True:
+            pin = f"{random.randint(0, 9999):04d}"
+            existing_ticket = self.get_active_ticket_by_pin(pin)
+            if existing_ticket is None:
+                return pin
 
     def _doc_to_ticket(self, doc) -> Ticket:
         data = doc.to_dict()
@@ -94,6 +97,19 @@ class TicketRepository:
         docs = (
             self.collection
             .where("slot_id", "==", slot_id)
+            .where("status", "==", "active")
+            .limit(1)
+            .stream()
+        )
+
+        for doc in docs:
+            return self._doc_to_ticket(doc)
+        return None
+
+    def get_active_ticket_by_pin(self, pin_code: str):
+        docs = (
+            self.collection
+            .where("pin_code", "==", pin_code)
             .where("status", "==", "active")
             .limit(1)
             .stream()

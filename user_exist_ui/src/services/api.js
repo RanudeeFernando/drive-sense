@@ -7,24 +7,19 @@ const API = axios.create({
   },
 });
 
-export const getLatestReceipt = async () => {
+export const verifyPin = async (pinCode) => {
   try {
-    const res = await API.get("/driver-view/receipt/latest");
+    const res = await API.post("/exit/verify-pin", { pin_code: pinCode });
     return res.data;
   } catch (error) {
-    console.warn("Backend not ready, using dummy receipt data.");
-    return {
-      title: "E Bill",
-      ticket_id: "TICKET-20260406-001",
-      slot_id: "S2",
-      vehicle_type: "Car",
-      entry_time: "2026-04-06T08:00:00",
-      exit_time: "2026-04-06T10:30:00",
-      duration_hours: 2.5,
-      amount: 250.0,
-      thank_you_message:
-        import.meta.env.VITE_THANK_YOU_MESSAGE ||
-        "Thank you for using Drive Sense AI",
-    };
+    if (error.response && error.response.data) {
+      const err = new Error(error.response.data.detail || "Failed to verify PIN");
+      err.type = "validation";
+      throw err;
+    }
+
+    const err = new Error("Unable to connect to server. Please try again.");
+    err.type = "connection";
+    throw err;
   }
 };

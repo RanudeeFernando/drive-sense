@@ -49,6 +49,10 @@ class ReceiptRequest(BaseModel):
     ticket_id: str
 
 
+class VerifyPinRequest(BaseModel):
+    pin_code: str
+
+
 class LightRequest(BaseModel):
     light_on: bool
 
@@ -70,6 +74,14 @@ def process_slot_release(req: SlotReleaseRequest):
 @router.post("/ticket-receipt")
 def get_receipt(req: ReceiptRequest):
     return ticket_manager_service.generate_e_receipt(req.ticket_id)
+
+
+@router.post("/exit/verify-pin")
+def process_exit_by_pin(req: VerifyPinRequest):
+    result = ticket_manager_service.process_exit_by_pin(req.pin_code)
+    if result["status"] == "failed":
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
 
 @router.post("/lighting")
 def control_light(req: LightRequest):
