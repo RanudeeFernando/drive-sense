@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getLightStatus, setAutoMode, setManualLight, getLDRStatus, setLDRControl, getLightLogs } from "../services/api.js";
+import { setManualLight, getLDRStatus, setLDRControl, getLightLogs } from "../services/api.js";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 export default function LightingManagementPage() {
   const [lightStatus, setLightStatus] = useState(false);
@@ -14,37 +16,25 @@ export default function LightingManagementPage() {
   const loadLogs = async () => {
     try {
       const data = await getLightLogs();
-      
-      // Filter by date if selected
       let filteredByDate = [...data];
       if (filterDate) {
         filteredByDate = data.filter(entry => entry.timestamp.startsWith(filterDate));
       }
-
-      // Sort by timestamp ascending to apply deduplication logic
       const sortedByTime = filteredByDate.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      
       const filtered = [];
       let lastStatus = null;
-      
       for (const entry of sortedByTime) {
         if (entry.status !== lastStatus) {
           filtered.push(entry);
           lastStatus = entry.status;
         }
       }
-      
       const deduplicated = filtered.reverse();
-      
-      // Apply row limit
       let limitedLogs = deduplicated;
       if (rowLimit !== "All") {
         limitedLogs = deduplicated.slice(0, parseInt(rowLimit));
       }
-      
       setLogs(limitedLogs);
-
-      // Update lightStatus based on the latest log entry
       if (deduplicated.length > 0) {
         setLightStatus(deduplicated[0].status === "ON");
       }
@@ -59,22 +49,9 @@ export default function LightingManagementPage() {
 
   const loadStatus = async () => {
     try {
-      // Load LDR status
       const ldrData = await getLDRStatus();
       setAutoModeState(Boolean(ldrData.enabled));
-      
-      // Load logs and sync lightStatus
       await loadLogs();
-
-      // Attempt to load general light status if available (fallback)
-      try {
-        const data = await getLightStatus();
-        if (data && data.light_on !== undefined) {
-          setLightStatus(Boolean(data.light_on));
-        }
-      } catch (err) {
-        // Fallback already handled by loadLogs
-      }
     } catch (error) {
       console.error("Failed to load status:", error);
     } finally {
@@ -92,7 +69,7 @@ export default function LightingManagementPage() {
       const data = await setManualLight(nextState);
       setLightStatus(Boolean(data.light_on));
       setAutoModeState(false);
-      await loadStatus(); // Refresh logs after manual toggle
+      await loadStatus();
     } catch (error) {
       console.error("Failed to change light status:", error);
       alert("Failed to change light status");
@@ -114,82 +91,57 @@ export default function LightingManagementPage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminLoggedIn");
-    navigate("/login");
-  };
-
   return (
-    <div className="page">
-      <div className="browser-frame">
-        <div className="browser-top">
-          <div className="browser-tab">light system</div>
-          <div className="browser-dots">
-            <span></span>
-            <span></span>
-            <span className="active-dot"></span>
-          </div>
-        </div>
-
-        <div className="browser-address">
-          <span className="fake-url">https://www.drive-sense.io</span>
-        </div>
-
+    <div className="page dashboard-page">
+      <Header />
+      <div className="dashboard-container">
         <div className="tab-bar">
-          <button className="tab active">Manage automatic lighting system</button>
-          <Link className="tab" to="/slot-availability">
-            View slot availability
-          </Link>
-          <Link className="tab" to="/parking-logs">
-            View parking logs
-          </Link>
+          <button className="tab active">Lighting</button>
+          <Link className="tab" to="/slot-availability">Slots</Link>
+          <Link className="tab" to="/parking-logs">Logs</Link>
         </div>
 
         <div className="content-area">
+          <h2 className="section-title">Smart Lighting Dashboard</h2>
+
           <div className="setting-row">
-            <span>Lighting Status:</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: '600' }}>LED Status</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Lights ON or OFF</span>
+            </div>
             <button
               className={`toggle-btn ${lightStatus ? "on" : "off"}`}
               onClick={handleLightToggle}
               disabled={loading || autoMode}
             >
-              {lightStatus ? "ON" : "OFF"}
+              {lightStatus ? "LIGHT ON" : "LIGHT OFF"}
             </button>
           </div>
 
           <div className="setting-row">
-            <span>Automatic Lighting System:</span>
-            <label className={`switch ${loading ? "disabled" : ""}`}>
-              <input
-                type="checkbox"
-                checked={autoMode}
-                onChange={handleAutoToggle}
-                disabled={loading}
-              />
-              <span className="slider"></span>
-            </label>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: '600' }}>Lighting System</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Enable or disable LDR sensor based control</span>
+            </div>
+            <button
+              className={`toggle-btn ${autoMode ? "on" : "off"}`}
+              onClick={handleAutoToggle}
+              disabled={loading}
+            >
+              {autoMode ? "ACTIVE" : "INACTIVE"}
+            </button>
           </div>
 
           <div className="logs-section" style={{ marginTop: "40px" }}>
-            <h3 style={{ marginBottom: "15px", textAlign: "center", color: "#444" }}>Light Status Activity Logs</h3>
-            
-            <div className="filter-controls" style={{ marginBottom: "15px", display: "flex", justifyContent: "center", gap: "20px", alignItems: "center" }}>
+            <h3 style={{ marginBottom: "15px", textAlign: "center", color: "var(--text-primary)" }}>Activity Logs</h3>
+            <div className="filter-controls" style={{ marginBottom: "20px", display: "flex", justifyContent: "center", gap: "20px", alignItems: "center" }}>
               <div>
-                <label style={{ fontSize: "14px", marginRight: "8px" }}>Filter Date:</label>
-                <input 
-                  type="date" 
-                  value={filterDate} 
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  style={{ padding: "4px 8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                />
+                <label style={{ fontSize: "14px", marginRight: "8px", color: "var(--text-gray)" }}>DATE:</label>
+                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{ padding: "8px 12px", borderRadius: "8px" }} />
               </div>
               <div>
-                <label style={{ fontSize: "14px", marginRight: "8px" }}>Rows:</label>
-                <select 
-                  value={rowLimit} 
-                  onChange={(e) => setRowLimit(e.target.value)}
-                  style={{ padding: "4px 8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                >
+                <label style={{ fontSize: "14px", marginRight: "8px", color: "var(--text-gray)" }}>LIMIT:</label>
+                <select value={rowLimit} onChange={(e) => setRowLimit(e.target.value)} style={{ padding: "8px 12px", borderRadius: "8px" }}>
                   <option value="All">All</option>
                   <option value="10">10</option>
                   <option value="5">5</option>
@@ -207,9 +159,9 @@ export default function LightingManagementPage() {
               <tbody>
                 {logs.map((log, index) => (
                   <tr key={index}>
-                    <td>{log.timestamp}</td>
-                    <td style={{ color: log.status === "ON" ? "#28a745" : "#7a7a7a", fontWeight: "bold" }}>
-                      {log.status}
+                    <td style={{ fontSize: '13px' }}>{log.timestamp}</td>
+                    <td>
+                      <span style={{ color: log.status === "ON" ? "var(--success)" : "var(--text-secondary)", fontWeight: "700", textTransform: 'uppercase', fontSize: '12px' }}>{log.status}</span>
                     </td>
                   </tr>
                 ))}
@@ -221,14 +173,9 @@ export default function LightingManagementPage() {
               </tbody>
             </table>
           </div>
-
-          <div className="button-row" style={{ marginTop: "30px" }}>
-            <button className="primary-btn" onClick={handleLogout}>
-              Back
-            </button>
-          </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
