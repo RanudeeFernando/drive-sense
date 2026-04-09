@@ -1,6 +1,7 @@
 import RPi.GPIO as GPIO
 import time
-from raspberry_pi.sensors.sensor import Sensor
+from sensors.sensor import Sensor
+
 
 class UltrasonicSensor(Sensor):
     def __init__(self, sensor_id, name, trig_pin, echo_pin):
@@ -37,34 +38,46 @@ class UltrasonicSensor(Sensor):
         distance = (time_elapsed * 34300) / 2
 
         return round(distance, 2)
-
-    # This method is used to detect the slot availabiltity.
-    def detect_free_slot_by_distance(self):
-        distance = self.get_distance()
-        print(f"{self.get_sensor_name()} Distance: {distance} cm")
-
-        slot_ranges = {
-            1: (0, 5),
-            2: (5, 10),
-            3: (10, 15),
-            4: (15, 20),
-            5: (20, 25)
-        }
-
-        for slot_id, (min_d, max_d) in slot_ranges.items():
-            if min_d <= distance < max_d:
-                print(f" Slot {slot_id} vehicle exited")
-                return slot_id
-
-        return None
     
-    # This method is used to detect the presence of a vechicle at the entry point and trigger the camera.
+    # This method is used to detect the presence of a vehicle at the entry point and trigger the camera.
     def detect_object_in_range(self, min_distance=0, max_distance=10):
         distance = self.get_distance()
         print(f"Measured distance: {distance} cm")
 
         if min_distance <= distance <= max_distance:
-            print(" Object detected in range!")
+            print("Object detected in range!")
             return True
         else:
             return False
+
+    def is_within_threshold(self, max_threshold):
+        distance = self.get_distance()
+
+        if distance is None:
+            return None
+
+        if distance <= max_threshold:
+            return distance
+
+        return None
+
+    def get_slot_id_by_distance(self, distance=None):
+        if distance is None:
+            distance = self.get_distance()
+
+        if distance is None:
+            return None
+
+        slot_ranges = {
+            1: (61.5, 71.5),
+            2: (51.5, 61.5),
+            3: (36.5, 51.5),
+            4: (21.5, 36.5),
+            5: (1.5, 21.5)
+        }
+
+        for slot_id, (min_d, max_d) in slot_ranges.items():
+            if min_d <= distance < max_d:
+                return slot_id
+
+        return None

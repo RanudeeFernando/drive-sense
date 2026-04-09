@@ -9,7 +9,7 @@ class CameraSensor(Sensor):
         self.camera_index = camera_index
 
     def capture_image(self) -> str | None:
-        folder = "raspberry_pi/captured_images"
+        folder = "captured_images"
         os.makedirs(folder, exist_ok=True)
 
         cap = cv2.VideoCapture(self.camera_index)

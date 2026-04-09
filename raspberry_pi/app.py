@@ -4,154 +4,281 @@ import os
 import threading
 import sys
 
+import RPi.GPIO as GPIO
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from sensors.ultrasonic_sensor import UltrasonicSensor
 from sensors.camera_sensor import CameraSensor
 from sensors.ldr_sensor import LDRSensor
 from ml_models.vehicle_classification_model import VehicleClassificationModel
 
-CLOUD_API_URL = "http://34.100.218.79:8000"
+CLOUD_API_URL = "http://35.200.128.215:8000"
+
+ENTRY_POLL_INTERVAL = 1
+EXIT_POLL_INTERVAL = 1
+LIGHT_POLL_INTERVAL = 5
+
+ENTRY_MIN_DISTANCE = 0
+ENTRY_MAX_DISTANCE = 10
+
+RESET_REQUIRED = 2
+
+from utils.logger_utils import entry_logger, exit_logger, light_logger, main_logger, log_both
 
 
 # ---------------- ENTRY PROCESS ----------------
 def entry_process(entry_sensor, camera, model):
+    entry_seen = False
+
     while True:
-        print("\n--- Entry Sensor Activated ---")
+        try:
+            distance = entry_sensor.get_distance()
 
-        if entry_sensor.detect_object_in_range():
-            print("Vehicle Arrived!")
-
-            img_path = camera.capture_image()
-            print(img_path)
-
-            # Fix path issue
-            if not os.path.exists(img_path) and os.path.exists(os.path.join("..", img_path)):
-                img_path = os.path.join("..", img_path)
-            elif not os.path.exists(img_path):
-                print(f"Camera capture didn't generate {img_path}")
-                time.sleep(2)
+            if distance is None:
+                time.sleep(ENTRY_POLL_INTERVAL)
                 continue
 
-            vehicle_type = model.classify_vehicle(img_path)
+            in_range = ENTRY_MIN_DISTANCE <= distance <= ENTRY_MAX_DISTANCE
 
-            print(f"Sending {vehicle_type} to cloud API...")
+            if in_range and not entry_seen:
+                entry_seen = True
+                log_both(entry_logger, f"Vehicle detected at entry: {distance} cm")
 
-            try:
-                response = requests.post(
-                    f"{CLOUD_API_URL}/ticket",
-                    json={"vehicle_type": vehicle_type}
-                )
+                img_path = camera.capture_image()
+                log_both(entry_logger, f"Captured image path: {img_path}")
 
-                if response.status_code == 200:
-                    print(f"Cloud Response: {response.json()}")
-                else:
-                    print(f"Cloud Error: {response.status_code} - {response.text}")
+                if not os.path.exists(img_path) and os.path.exists(os.path.join("..", img_path)):
+                    img_path = os.path.join("..", img_path)
+                elif not os.path.exists(img_path):
+                    log_both(
+                        entry_logger,
+                        f"Camera capture did not generate file: {img_path}",
+                        level="warning"
+                    )
+                    time.sleep(2)
+                    continue
 
-            except Exception as e:
-                print(f"Failed to reach cloud API: {e}")
+                vehicle_type = model.classify_vehicle(img_path)
+                log_both(entry_logger, f"Predicted vehicle type: {vehicle_type}")
 
-        time.sleep(1)
+                try:
+                    log_both(entry_logger, "Sending ticket request to cloud")
+                    response = requests.post(
+                        f"{CLOUD_API_URL}/ticket",
+                        json={"vehicle_type": vehicle_type},
+                        timeout=5
+                    )
+
+                    if response.status_code == 200:
+                        log_both(entry_logger, f"Cloud response: {response.json()}")
+                    else:
+                        log_both(
+                            entry_logger,
+                            f"Cloud error {response.status_code}: {response.text}",
+                            level="error"
+                        )
+
+                except Exception as e:
+                    log_both(entry_logger, f"Failed to reach cloud API: {e}", level="error")
+
+            elif not in_range and entry_seen:
+                entry_seen = False
+                log_both(entry_logger, "Entry zone cleared, sensor re-armed")
+
+            time.sleep(ENTRY_POLL_INTERVAL)
+
+        except Exception as e:
+            log_both(entry_logger, f"Unexpected error in entry thread: {e}", level="error")
+            time.sleep(2)
 
 
 # ---------------- EXIT PROCESS ----------------
 def exit_process(slot_sensor):
+    last_triggered_slot = None
+    reset_count = 0
+
     while True:
-        print("\n--- Exit Sensor Activated ---")
+        try:
+            distance = slot_sensor.get_distance()
 
-        distance = slot_sensor.get_distance()
-        print(f"Slot Sensor Distance: {distance} cm")
+            if distance is None:
+                time.sleep(EXIT_POLL_INTERVAL)
+                continue
 
-        if distance is not None:
-            try:
-                print(f"Sending exit distance {distance} to cloud...")
+            current_slot = slot_sensor.get_slot_id_by_distance(distance)
 
-                response = requests.post(
-                    f"{CLOUD_API_URL}/release-slot",
-                    json={"distance": distance}
-                )
+            if current_slot is not None:
+                reset_count = 0
 
-                if response.status_code == 200:
-                    print(f"Cloud Response: {response.json()}")
-                else:
-                    print(f"Cloud Error: {response.status_code} - {response.text}")
+                if current_slot != last_triggered_slot:
+                    log_both(
+                        exit_logger,
+                        f"Slot {current_slot} detected at {distance} cm"
+                    )
 
-            except Exception as e:
-                print(f"Failed to reach cloud API: {e}")
+                    try:
+                        log_both(
+                            exit_logger,
+                            f"Sending release request for slot {current_slot} to cloud"
+                        )
+                        response = requests.post(
+                            f"{CLOUD_API_URL}/release-slot",
+                            json={"slot_id": current_slot},
+                            timeout=5
+                        )
 
-        time.sleep(1)
+                        if response.status_code == 200:
+                            log_both(exit_logger, f"Cloud response: {response.json()}")
+                            last_triggered_slot = current_slot
+                        else:
+                            log_both(
+                                exit_logger,
+                                f"Cloud error {response.status_code}: {response.text}",
+                                level="error"
+                            )
+
+                    except Exception as e:
+                        log_both(exit_logger, f"Failed to reach cloud API: {e}", level="error")
+
+                # Still inside same slot range -> ignore silently
+
+            else:
+                if last_triggered_slot is not None:
+                    reset_count += 1
+
+                    if reset_count == 1:
+                        log_both(
+                            exit_logger,
+                            f"Sensor left slot ranges, waiting to re-arm ({reset_count}/{RESET_REQUIRED})"
+                        )
+
+                    if reset_count >= RESET_REQUIRED:
+                        log_both(
+                            exit_logger,
+                            "Exit sensor reset and re-armed"
+                        )
+                        last_triggered_slot = None
+                        reset_count = 0
+
+            time.sleep(EXIT_POLL_INTERVAL)
+
+        except Exception as e:
+            log_both(exit_logger, f"Unexpected error in exit thread: {e}", level="error")
+            time.sleep(2)
 
 
 # ---------------- LIGHTING PROCESS ----------------
 def lighting_process(ldr_sensor):
+    last_light_state = None
+    last_enabled_state = None
+
     while True:
-        print("\n--- LDR Process Running ---")
-
-        # 🔹 Check admin control from cloud
         try:
-            status_resp = requests.get(f"{CLOUD_API_URL}/ldr-status")
-            ldr_enabled = status_resp.json().get("enabled", True) if status_resp.status_code == 200 else True
-        except Exception as e:
-            print(f"Failed to fetch LDR status: {e}")
-            ldr_enabled = True
-
-        if ldr_enabled:
-            resistance = ldr_sensor.read_resistance()
-            print(f"LDR Resistance: {resistance} Ω")
-
-            light_status = ldr_sensor.is_light(resistance)
-            ldr_sensor.control_led(light_status)
-
             try:
-                light_resp = requests.post(
-                    f"{CLOUD_API_URL}/lighting",
-                    json={"light_on": light_status}
+                status_resp = requests.get(f"{CLOUD_API_URL}/ldr-status", timeout=5)
+                ldr_enabled = (
+                    status_resp.json().get("enabled", True)
+                    if status_resp.status_code == 200
+                    else True
                 )
-
-                if light_resp.status_code == 200:
-                    is_on = light_resp.json().get("light_on", False)
-
-                    if is_on:
-                        print("[PI RELAY] Turning LED ON!")
-                    else:
-                        print("[PI RELAY] Turning LED OFF!")
-                else:
-                    print(f"Cloud Error: {light_resp.status_code}")
-
             except Exception as e:
-                print(f"Failed to reach cloud API: {e}")
+                log_both(light_logger, f"Failed to fetch LDR status: {e}", level="error")
+                ldr_enabled = True
 
-        else:
-            print("LDR Disabled by Admin")
-            ldr_sensor.control_led(False)
+            if ldr_enabled != last_enabled_state:
+                log_both(light_logger, f"LDR enabled state changed: {ldr_enabled}")
+                last_enabled_state = ldr_enabled
 
-        time.sleep(5)
+            if ldr_enabled:
+                resistance = ldr_sensor.read_resistance()
+                light_status = ldr_sensor.is_light(resistance)
+                ldr_sensor.control_led(light_status)
+
+                if light_status != last_light_state:
+                    log_both(
+                        light_logger,
+                        f"LDR resistance: {resistance} ohms | sending lighting update: {'ON' if light_status else 'OFF'}"
+                    )
+
+                    try:
+                        response = requests.post(
+                            f"{CLOUD_API_URL}/lighting",
+                            json={"light_on": light_status},
+                            timeout=5
+                        )
+
+                        if response.status_code == 200:
+                            cloud_state = response.json().get("light_on", False)
+                            log_both(
+                                light_logger,
+                                f"Cloud response: {'ON' if cloud_state else 'OFF'}"
+                            )
+                        else:
+                            log_both(
+                                light_logger,
+                                f"Cloud error {response.status_code}: {response.text}",
+                                level="error"
+                            )
+
+                    except Exception as e:
+                        log_both(light_logger, f"Failed to reach cloud API: {e}", level="error")
+
+                    last_light_state = light_status
+
+            else:
+                ldr_sensor.control_led(False)
+
+            time.sleep(LIGHT_POLL_INTERVAL)
+
+        except Exception as e:
+            log_both(light_logger, f"Unexpected error in lighting thread: {e}", level="error")
+            time.sleep(2)
 
 
 # ---------------- MAIN ----------------
 def main():
-    entry_sensor = UltrasonicSensor(1, "Entry Sensor", 20, 21)
-    slot_sensor = UltrasonicSensor(2, "Slot Sensor", 23, 24)
+    entry_sensor = UltrasonicSensor(1, "Entry Sensor", 23, 24)
+    slot_sensor = UltrasonicSensor(2, "Slot Sensor", 20, 21)
     camera = CameraSensor()
     ldr_sensor = LDRSensor()
 
     model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model_int8.tflite")
     model = VehicleClassificationModel(model_path)
 
-    print("Raspberry Pi Edge Node Started...")
+    log_both(main_logger, "Raspberry Pi Edge Node Started")
 
-    # Create threads
-    entry_thread = threading.Thread(target=entry_process, args=(entry_sensor, camera, model))
-    exit_thread = threading.Thread(target=exit_process, args=(slot_sensor,))
-    light_thread = threading.Thread(target=lighting_process, args=(ldr_sensor,))
+    entry_thread = threading.Thread(
+        target=entry_process,
+        args=(entry_sensor, camera, model),
+        name="ENTRY-THREAD",
+        daemon=True
+    )
 
-    # Start threads
+    exit_thread = threading.Thread(
+        target=exit_process,
+        args=(slot_sensor,),
+        name="EXIT-THREAD",
+        daemon=True
+    )
+
+    light_thread = threading.Thread(
+        target=lighting_process,
+        args=(ldr_sensor,),
+        name="LIGHT-THREAD",
+        daemon=True
+    )
+
     entry_thread.start()
     exit_thread.start()
     light_thread.start()
 
-    # Keep program alive forever
-    while True:
-        time.sleep(10)
+    try:
+        while True:
+            time.sleep(10)
+    except KeyboardInterrupt:
+        log_both(main_logger, "Shutting down...")
+        GPIO.cleanup()
 
 
 if __name__ == "__main__":

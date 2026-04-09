@@ -42,7 +42,7 @@ class TicketingRequest(BaseModel):
 
 
 class SlotReleaseRequest(BaseModel):
-    distance: float
+    slot_id: int
 
 
 class ReceiptRequest(BaseModel):
@@ -68,7 +68,7 @@ def allocate_ticket(req: TicketingRequest):
 
 @router.post("/release-slot")
 def process_slot_release(req: SlotReleaseRequest):
-    return slot_manager_service.release_slot_by_distance(req.distance)
+    return slot_manager_service.process_release_by_id(req.slot_id)
 
 
 @router.post("/ticket-receipt")

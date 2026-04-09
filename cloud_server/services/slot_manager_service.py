@@ -14,6 +14,41 @@ class SlotManagerService:
     def release_slot_by_id(self, slot_id: int) -> bool:
         return self.slot_repository.release_slot(slot_id)
 
+    def process_release_by_id(self, slot_id: int):
+        print(f"Received exit trigger for slot_id: {slot_id}")
+
+        slot = self.slot_repository.get_slot_by_id(slot_id)
+
+        if slot is None:
+            print("Received unknown slot ID!")
+            return {
+                "status": "failed",
+                "message": "Invalid slot ID"
+            }
+
+        if not slot.get_slot_status():  # slot already free
+            return {
+                "status": "ignored",
+                "slot_id": slot.get_slot_id(),
+                "message": "Slot already free (false trigger ignored)"
+            }
+
+        #  Only release if occupied
+        success = self.slot_repository.release_slot(slot.get_slot_id())
+
+        if not success:
+            return {
+                "status": "failed",
+                "message": "Slot could not be released"
+            }
+
+        return {
+            "status": "success",
+            "slot_id": slot.get_slot_id(),
+            "slot_type": slot.get_slot_type().value,
+            "message": "Slot released successfully"
+        }
+
     def release_slot_by_distance(self, distance: float):
         print(f"Received exit distance: {distance} cm")
 
@@ -27,8 +62,7 @@ class SlotManagerService:
             }
 
         #  ADD THIS BLOCK (VERY IMPORTANT)
-        if not slot.get_slot_status():  # slot already free
-            print(f"Slot {slot.get_slot_id()} is already free  ignoring false trigger")
+        if not slot.get_slot_status():
             return {
                 "status": "ignored",
                 "slot_id": slot.get_slot_id(),
