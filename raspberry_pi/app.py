@@ -3,6 +3,8 @@ import requests
 import os
 import threading
 import sys
+import requests
+
 
 import RPi.GPIO as GPIO
 
@@ -60,6 +62,10 @@ def entry_process(entry_sensor, camera, model):
                     continue
 
                 vehicle_type = model.classify_vehicle(img_path)
+                # Move image into correct folder
+                local_path = camera.move_to_class_folder(vehicle_type, img_path)
+                # Send to cloud
+                send_image_to_cloud(local_path, vehicle_type)
                 log_both(entry_logger, f"Predicted vehicle type: {vehicle_type}")
 
                 try:
@@ -91,6 +97,27 @@ def entry_process(entry_sensor, camera, model):
         except Exception as e:
             log_both(entry_logger, f"Unexpected error in entry thread: {e}", level="error")
             time.sleep(2)
+
+# ---------------- Sending data to cloud ----------------
+def send_image_to_cloud(image_path, vehicle_type):
+    vehicle_type = vehicle_type.lower()
+
+    if not os.path.exists(image_path):
+        print(f"Image {image_path} not found")
+        return
+
+    files = {"file": open(image_path, "rb")}
+
+    response = requests.post(
+        f"{CLOUD_API_URL}/upload-image/{vehicle_type}",  
+        files=files
+    )
+
+    if response.status_code == 200:
+        print(f"Uploaded image to cloud: {response.json()}")
+    else:
+        print(f"Failed to upload image: {response.status_code} - {response.text}")
+
 
 
 # ---------------- EXIT PROCESS ----------------

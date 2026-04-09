@@ -1,6 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from fastapi import APIRouter, UploadFile, File
+import os
+import shutil
+from datetime import datetime
+
 from cloud_server.services.slot_manager_service import SlotManagerService
 from cloud_server.services.ticket_manager_service import TicketManagerService
 from cloud_server.services.light_manager_service import LightManagerService
@@ -156,3 +161,25 @@ def get_light_logs():
     
     repo = LightRepository()
     return repo.get_all_logs()
+
+
+
+DATA_DIR = "Data"
+CLASSES = ["car", "bike", "lorry", "unknown"]
+
+for cls in CLASSES:
+    os.makedirs(os.path.join(DATA_DIR, cls), exist_ok=True)
+
+@router.post("/upload-image/{vehicle_type}")
+async def upload_image(vehicle_type: str, file: UploadFile = File(...)):
+    if vehicle_type.lower() not in CLASSES:
+        return {"status": "error", "message": f"Invalid vehicle type: {vehicle_type}"}
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{vehicle_type}_{timestamp}.jpg"
+    save_path = os.path.join(DATA_DIR, vehicle_type.lower(), filename)
+
+    with open(save_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    return {"status": "success", "filename": filename, "path": save_path}

@@ -1,4 +1,5 @@
 import os
+import shutil
 import cv2
 import time
 from sensors.sensor import Sensor
@@ -36,3 +37,24 @@ class CameraSensor(Sensor):
 
         cap.release()
         return filepath
+    
+    def move_to_class_folder(self, vehicle_type, img_path):
+        vehicle_type = vehicle_type.lower()
+
+        if vehicle_type not in ["car", "bike", "lorry"]:
+            vehicle_type = "unknown"
+
+        folder_path = os.path.join("captured_images", vehicle_type)
+        os.makedirs(folder_path, exist_ok=True)
+
+        new_path = os.path.join(folder_path, os.path.basename(img_path))
+
+        # MOVE the file (important)
+        shutil.move(img_path, new_path)
+
+        return new_path
+
+
+        
+
+    
