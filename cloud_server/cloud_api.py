@@ -176,7 +176,7 @@ async def upload_image(vehicle_type: str, file: UploadFile = File(...)):
         return {"status": "error", "message": f"Invalid vehicle type: {vehicle_type}"}
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{vehicle_type}_{timestamp}.jpg"
+    filename = f"{vehicle_type}_{timestamp}.jpeg"
     save_path = os.path.join(DATA_DIR, vehicle_type.lower(), filename)
 
     with open(save_path, "wb") as f:

@@ -1,6 +1,6 @@
 import os
 import shutil
-import cv2
+# import cv2
 import time
 from sensors.sensor import Sensor
 
@@ -10,32 +10,34 @@ class CameraSensor(Sensor):
         self.camera_index = camera_index
 
     def capture_image(self) -> str | None:
-        folder = "captured_images"
-        os.makedirs(folder, exist_ok=True)
+        # folder = "captured_images"
+        # os.makedirs(folder, exist_ok=True)
 
-        cap = cv2.VideoCapture(self.camera_index)
+        # cap = cv2.VideoCapture(self.camera_index)
 
-        if not cap.isOpened():
-            print("Cannot open USB camera")
-            return None
+        # if not cap.isOpened():
+        #     print("Cannot open USB camera")
+        #     return None
 
-        time.sleep(0.5)
+        # time.sleep(0.5)
 
-        ret, frame = cap.read()
+        # ret, frame = cap.read()
 
-        if not ret:
-            print("Failed to capture image")
-            cap.release()
-            return None
+        # if not ret:
+        #     print("Failed to capture image")
+        #     cap.release()
+        #     return None
 
-        timestamp = int(time.time())
-        filename = f"vehicle_{timestamp}.jpg"
-        filepath = os.path.join(folder, filename)
+        # timestamp = int(time.time())
+        # filename = f"vehicle_{timestamp}.jpg"
+        # filepath = os.path.join(folder, filename)
 
-        cv2.imwrite(filepath, frame)
-        print(f"Captured image: {filename}")
+        # cv2.imwrite(filepath, frame)
+        # print(f"Captured image: {filename}")
 
-        cap.release()
+        # cap.release()
+        filepath = "C:\\Users\\Binara Mendis\\Desktop\\DRIVE SENSE\\drive-sense\\raspberry_pi\\sensors\\captured_images\\WhatsApp Image 2026-04-07 at 8.46.02 PM.jpeg"
+        
         return filepath
     
     def move_to_class_folder(self, vehicle_type, img_path):

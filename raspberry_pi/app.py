@@ -6,7 +6,7 @@ import sys
 import requests
 
 
-import RPi.GPIO as GPIO
+# import RPi.GPIO as GPIO
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -265,8 +265,8 @@ def lighting_process(ldr_sensor):
 
 # ---------------- MAIN ----------------
 def main():
-    entry_sensor = UltrasonicSensor(1, "Entry Sensor", 23, 24)
-    slot_sensor = UltrasonicSensor(2, "Slot Sensor", 20, 21)
+    entry_sensor = UltrasonicSensor(1, "entry sensor")
+    slot_sensor = UltrasonicSensor(2, "slot sensor")
     camera = CameraSensor()
     ldr_sensor = LDRSensor()
 
@@ -305,7 +305,7 @@ def main():
             time.sleep(10)
     except KeyboardInterrupt:
         log_both(main_logger, "Shutting down...")
-        GPIO.cleanup()
+        # GPIO.cleanup()
 
 
 if __name__ == "__main__":

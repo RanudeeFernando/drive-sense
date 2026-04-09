@@ -1,41 +1,42 @@
-import RPi.GPIO as GPIO
+# import RPi.GPIO as GPIO
 import time
 from sensors.sensor import Sensor
 
 
 class UltrasonicSensor(Sensor):
-    def __init__(self, sensor_id, name, trig_pin, echo_pin):
-        super().__init__(sensor_id, name)
+    # def __init__(self, sensor_id, name, trig_pin, echo_pin):
+    #     super().__init__(sensor_id, name)
 
-        self.trig_pin = trig_pin
-        self.echo_pin = echo_pin
+    #     self.trig_pin = trig_pin
+    #     self.echo_pin = echo_pin
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.trig_pin, GPIO.OUT)
-        GPIO.setup(self.echo_pin, GPIO.IN)
+    #     GPIO.setmode(GPIO.BCM)
+    #     GPIO.setup(self.trig_pin, GPIO.OUT)
+    #     GPIO.setup(self.echo_pin, GPIO.IN)
 
     def get_distance(self):
         # Send trigger pulse
-        GPIO.output(self.trig_pin, True)
-        time.sleep(0.00001)
-        GPIO.output(self.trig_pin, False)
+        # GPIO.output(self.trig_pin, True)
+        # time.sleep(0.00001)
+        # GPIO.output(self.trig_pin, False)
 
-        start_time = time.time()
-        stop_time = time.time()
+        # start_time = time.time()
+        # stop_time = time.time()
 
-        # Save start time
-        while GPIO.input(self.echo_pin) == 0:
-            start_time = time.time()
+        # # Save start time
+        # while GPIO.input(self.echo_pin) == 0:
+        #     start_time = time.time()
 
-        # Save arrival time
-        while GPIO.input(self.echo_pin) == 1:
-            stop_time = time.time()
+        # # Save arrival time
+        # while GPIO.input(self.echo_pin) == 1:
+        #     stop_time = time.time()
 
-        # Time difference
-        time_elapsed = stop_time - start_time
+        # # Time difference
+        # time_elapsed = stop_time - start_time
 
-        # Distance calculation
-        distance = (time_elapsed * 34300) / 2
+        # # Distance calculation
+        # distance = (time_elapsed * 34300) / 2
+        distance = 5.0
 
         return round(distance, 2)
     

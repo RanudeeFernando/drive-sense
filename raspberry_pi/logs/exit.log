@@ -1,0 +1,23 @@
+22:01:19 [EXIT-THREAD] INFO: Slot 3 detected at 50.0 cm
+22:01:19 [EXIT-THREAD] INFO: Sending release request for slot 3 to cloud
+22:01:21 [EXIT-THREAD] INFO: Cloud response: {'status': 'success', 'slot_id': 3, 'slot_type': 'car', 'message': 'Slot released successfully'}
+22:02:11 [EXIT-THREAD] INFO: Slot 5 detected at 5.0 cm
+22:02:11 [EXIT-THREAD] INFO: Sending release request for slot 5 to cloud
+22:02:12 [EXIT-THREAD] INFO: Cloud response: {'status': 'success', 'slot_id': 5, 'slot_type': 'lorry', 'message': 'Slot released successfully'}
+22:16:18 [EXIT-THREAD] INFO: Slot 5 detected at 5.0 cm
+22:16:18 [EXIT-THREAD] INFO: Sending release request for slot 5 to cloud
+22:16:21 [EXIT-THREAD] ERROR: Failed to reach cloud API: HTTPConnectionPool(host='35.200.128.215', port=8000): Max retries exceeded with url: /release-slot (Caused by NewConnectionError("HTTPConnection(host='35.200.128.215', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+22:16:22 [EXIT-THREAD] INFO: Slot 5 detected at 5.0 cm
+22:16:22 [EXIT-THREAD] INFO: Sending release request for slot 5 to cloud
+22:19:38 [EXIT-THREAD] INFO: Slot 5 detected at 5.0 cm
+22:19:38 [EXIT-THREAD] INFO: Sending release request for slot 5 to cloud
+22:19:39 [EXIT-THREAD] INFO: Cloud response: {'status': 'ignored', 'slot_id': 5, 'message': 'Slot already free (false trigger ignored)'}
+22:21:01 [EXIT-THREAD] INFO: Slot 5 detected at 5.0 cm
+22:21:01 [EXIT-THREAD] INFO: Sending release request for slot 5 to cloud
+22:21:01 [EXIT-THREAD] INFO: Cloud response: {'status': 'ignored', 'slot_id': 5, 'message': 'Slot already free (false trigger ignored)'}
+22:23:57 [EXIT-THREAD] INFO: Slot 5 detected at 5.0 cm
+22:23:57 [EXIT-THREAD] INFO: Sending release request for slot 5 to cloud
+22:23:58 [EXIT-THREAD] INFO: Cloud response: {'status': 'ignored', 'slot_id': 5, 'message': 'Slot already free (false trigger ignored)'}
+22:30:09 [EXIT-THREAD] INFO: Slot 5 detected at 5.0 cm
+22:30:09 [EXIT-THREAD] INFO: Sending release request for slot 5 to cloud
+22:30:10 [EXIT-THREAD] INFO: Cloud response: {'status': 'ignored', 'slot_id': 5, 'message': 'Slot already free (false trigger ignored)'}
