@@ -5,6 +5,7 @@ from raspberry_pi.cloud_db.firestore_client import get_db
 from raspberry_pi.data_models.ticket import Ticket
 from raspberry_pi.data_models.parking_slot import ParkingSlot
 from raspberry_pi.data_models.vehicle_type import VehicleType
+from raspberry_pi.local_storage.ticket_memory_store import TicketMemoryStore
 from raspberry_pi.repositories.slot_repository import SlotRepository
 
 
@@ -13,6 +14,7 @@ class TicketRepository:
         self.db = get_db()
         self.collection = self.db.collection("tickets")
         self.slot_repository = SlotRepository()
+        self.memory_store = TicketMemoryStore()
 
     @staticmethod
     def _build_fallback_slot(slot_id: int, vehicle_type: VehicleType) -> ParkingSlot:
@@ -57,8 +59,6 @@ class TicketRepository:
     def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> dict:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         ticket_id = f"DST-{timestamp}"
-        doc_ref = self.collection.document(ticket_id)
-
         pin_code = self.generate_pin_code()
         entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -75,7 +75,13 @@ class TicketRepository:
             pin_status="active"
         )
 
-        doc_ref.set(ticket.to_dict())
+        try:
+            doc_ref = self.collection.document(ticket_id)
+            doc_ref.set(ticket.to_dict())
+        except Exception:
+            pass
+
+        self.memory_store.upsert_ticket(ticket)
 
         return {
             "ticket_id": ticket_id,
@@ -86,36 +92,57 @@ class TicketRepository:
         }
 
     def get_ticket_by_id(self, ticket_id: str):
-        doc = self.collection.document(ticket_id).get()
-        if doc.exists:
-            return self._doc_to_ticket(doc)
-        return None
+        try:
+            doc = self.collection.document(ticket_id).get()
+            if doc.exists:
+                ticket = self._doc_to_ticket(doc)
+                self.memory_store.upsert_ticket(ticket)
+                return ticket
+            return None
+        except Exception:
+            return self.memory_store.get_ticket_by_id(ticket_id)
 
     def get_active_ticket_by_slot_id(self, slot_id: int):
-        docs = (
-            self.collection
-            .where("slot_id", "==", slot_id)
-            .where("status", "==", "active")
-            .limit(1)
-            .stream()
-        )
+        try:
+            docs = (
+                self.collection
+                .where("slot_id", "==", slot_id)
+                .where("status", "==", "active")
+                .limit(1)
+                .stream()
+            )
 
-        for doc in docs:
-            return self._doc_to_ticket(doc)
-        return None
+            found_ticket = None
+            for doc in docs:
+                found_ticket = self._doc_to_ticket(doc)
+                break
+
+            self._sync_tickets_from_firestore()
+            return found_ticket
+
+        except Exception:
+            return self.memory_store.get_active_ticket_by_slot_id(slot_id)
 
     def get_active_ticket_by_pin(self, pin_code: str):
-        docs = (
-            self.collection
-            .where("pin_code", "==", pin_code)
-            .where("status", "==", "active")
-            .limit(1)
-            .stream()
-        )
+        try:
+            docs = (
+                self.collection
+                .where("pin_code", "==", pin_code)
+                .where("status", "==", "active")
+                .limit(1)
+                .stream()
+            )
 
-        for doc in docs:
-            return self._doc_to_ticket(doc)
-        return None
+            found_ticket = None
+            for doc in docs:
+                found_ticket = self._doc_to_ticket(doc)
+                break
+
+            self._sync_tickets_from_firestore()
+            return found_ticket
+
+        except Exception:
+            return self.memory_store.get_active_ticket_by_pin(pin_code)
 
     def update_ticket_on_exit(
         self,
@@ -124,21 +151,48 @@ class TicketRepository:
         duration_minutes: float,
         price: float
     ) -> bool:
-        doc_ref = self.collection.document(ticket_id)
-        doc = doc_ref.get()
+        exit_time_str = exit_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        if not doc.exists:
-            return False
+        firestore_success = False
 
-        doc_ref.update({
-            "exit_time": exit_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "duration_minutes": round(duration_minutes, 2),
-            "price": price,
-            "status": "closed",
-            "pin_status": "expired"
-        })
-        return True
+        try:
+            doc_ref = self.collection.document(ticket_id)
+            doc = doc_ref.get()
+
+            if doc.exists:
+                doc_ref.update({
+                    "exit_time": exit_time_str,
+                    "duration_minutes": round(duration_minutes, 2),
+                    "price": price,
+                    "status": "closed",
+                    "pin_status": "expired"
+                })
+                firestore_success = True
+        except Exception:
+            pass
+
+        memory_success = self.memory_store.update_ticket_on_exit(
+            ticket_id=ticket_id,
+            exit_time=exit_time_str,
+            duration_minutes=duration_minutes,
+            price=price
+        )
+
+        return firestore_success or memory_success
 
     def get_all_tickets(self):
-        docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()
-        return [self._doc_to_ticket(doc) for doc in docs]
+        try:
+            docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()
+            tickets = [self._doc_to_ticket(doc) for doc in docs]
+            self.memory_store.seed_from_tickets(tickets)
+            return tickets
+        except Exception:
+            return self.memory_store.get_all_tickets()
+
+    def _sync_tickets_from_firestore(self) -> None:
+        try:
+            docs = self.collection.stream()
+            tickets = [self._doc_to_ticket(doc) for doc in docs]
+            self.memory_store.seed_from_tickets(tickets)
+        except Exception:
+            pass

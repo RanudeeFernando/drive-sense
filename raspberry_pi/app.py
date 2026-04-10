@@ -158,8 +158,6 @@ def exit_process(slot_sensor, slot_manager):
                     except Exception as e:
                         log_both(exit_logger, f"Failed local slot release: {e}", level="error")
 
-                # Still inside same slot range -> ignore silently
-
             else:
                 if last_triggered_slot is not None:
                     reset_count += 1
@@ -253,6 +251,24 @@ def lighting_process(ldr_sensor):
             time.sleep(2)
 
 
+def preload_local_memory(slot_repository, ticket_repository):
+    """
+    Best-effort preload so CSV fallback memory is seeded from Firestore at startup.
+    If Firestore is unavailable, repositories will simply fall back internally.
+    """
+    try:
+        slots = slot_repository.get_all_slots()
+        log_both(main_logger, f"Preloaded slot memory with {len(slots)} slots")
+    except Exception as e:
+        log_both(main_logger, f"Failed to preload slot memory: {e}", level="warning")
+
+    try:
+        tickets = ticket_repository.get_all_tickets()
+        log_both(main_logger, f"Preloaded ticket memory with {len(tickets)} tickets")
+    except Exception as e:
+        log_both(main_logger, f"Failed to preload ticket memory: {e}", level="warning")
+
+
 # ---------------- MAIN ----------------
 def main():
     entry_sensor = UltrasonicSensor(1, "Entry Sensor", 23, 24)
@@ -265,6 +281,8 @@ def main():
 
     slot_repository = SlotRepository()
     ticket_repository = TicketRepository()
+
+    preload_local_memory(slot_repository, ticket_repository)
 
     slot_manager = SlotManagerService(slot_repository)
     ticket_manager = TicketManagerService(ticket_repository, slot_manager)
