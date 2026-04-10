@@ -29,6 +29,67 @@ RESET_REQUIRED = 2
 from utils.logger_utils import entry_logger, exit_logger, light_logger, main_logger, log_both
 
 
+
+# import cv2
+import requests
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.oauth2 import service_account
+
+# =========================
+# CONFIG
+# =========================
+SERVICE_ACCOUNT_FILE = "credentials/serviceAccountKey.json"
+FOLDER_ID = "YOUR_DRIVE_FOLDER_ID"
+
+# =========================
+# AUTHENTICATE DRIVE
+# =========================
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE,
+    scopes=["https://www.googleapis.com/auth/drive"]
+)
+
+drive_service = build('drive', 'v3', credentials=credentials)
+
+def upload_to_drive(file_path):
+    file_metadata = {
+        'name': file_path,
+        'parents': [FOLDER_ID]
+    }
+
+    media = MediaFileUpload(file_path, mimetype='image/jpeg')
+
+    file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+
+    file_id = file.get('id')
+    print("Uploaded to Drive. File ID:", file_id)
+
+    return file_id
+
+def make_public(file_id):
+    drive_service.permissions().create(
+        fileId=file_id,
+        body={'type': 'anyone', 'role': 'reader'}
+    ).execute()
+
+    return f"https://drive.google.com/file/d/{file_id}/view"
+
+def send_to_backend(file_id, url):
+    data = {
+        "file_id": file_id,
+        "file_url": url
+    }
+
+    response = requests.post(f"{CLOUD_API_URL}/upload", json=data)
+    print("Backend response:", response.text)
+
+
+
 # ---------------- ENTRY PROCESS ----------------
 def entry_process(entry_sensor, camera, model):
     entry_seen = False
@@ -65,7 +126,12 @@ def entry_process(entry_sensor, camera, model):
                 # Move image into correct folder
                 local_path = camera.move_to_class_folder(vehicle_type, img_path)
                 # Send to cloud
-                send_image_to_cloud(local_path, vehicle_type)
+                file_id = upload_to_drive(local_path)
+
+                file_url = make_public(file_id)
+
+                send_to_backend(file_id, file_url)
+                # send_image_to_cloud(local_path, vehicle_type)
                 log_both(entry_logger, f"Predicted vehicle type: {vehicle_type}")
 
                 try:
@@ -269,6 +335,7 @@ def main():
     slot_sensor = UltrasonicSensor(2, "slot sensor")
     camera = CameraSensor()
     ldr_sensor = LDRSensor()
+
 
     model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model_int8.tflite")
     model = VehicleClassificationModel(model_path)

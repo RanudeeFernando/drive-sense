@@ -15,6 +15,7 @@ from cloud_server.repositories.ticket_repository import TicketRepository
 from cloud_server.repositories.light_repository import LightRepository
 from cloud_server.services.admin_service import AdminService
 from cloud_server.data_models.vehicle_type import VehicleType
+from raspberry_pi import app
 
 router = APIRouter()
 
@@ -183,3 +184,15 @@ async def upload_image(vehicle_type: str, file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, f)
 
     return {"status": "success", "filename": filename, "path": save_path}
+
+from pydantic import BaseModel
+class ImageData(BaseModel):
+    file_id: str
+    file_url: str
+
+@router.post("/upload")
+def receive_image(data: ImageData):
+    print("Received File ID:", data.file_id)
+    print("URL:", data.file_url)
+
+    return {"status": "success"}
