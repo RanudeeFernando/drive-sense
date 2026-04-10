@@ -1,7 +1,6 @@
-
 from datetime import datetime
 
-from cloud_server.data_models.vehicle_type import VehicleType, PARKING_RATES
+from raspberry_pi.data_models.vehicle_type import VehicleType, PARKING_RATES
 
 
 class TicketManagerService:
@@ -18,7 +17,12 @@ class TicketManagerService:
                 "message": f"No available slot for vehicle type: {vehicle_type.value}"
             }
 
-        self.slot_manager_service.reserve_slot(available_slot.get_slot_id())
+        reserved = self.slot_manager_service.reserve_slot(available_slot.get_slot_id())
+        if not reserved:
+            return {
+                "status": "failed",
+                "message": f"Failed to reserve slot: {available_slot.get_slot_id()}"
+            }
 
         ticket_data = self.ticket_repository.generate_ticket(
             parking_slot=available_slot,
@@ -59,7 +63,7 @@ class TicketManagerService:
                 "message": f"No active ticket found for slot: {slot_id}"
             }
 
-        self.slot_manager_service.release_slot(slot_id)
+        self.slot_manager_service.release_slot_by_id(slot_id)
 
         entry_time = datetime.strptime(ticket.get_entry_time(), "%Y-%m-%d %H:%M:%S")
         exit_time = datetime.now()
@@ -100,8 +104,9 @@ class TicketManagerService:
 
         slot_id = ticket.get_slot_id()
 
-        # NOTE: We do NOT release the slot here. 
-        # The slot is released by the slot sensor physically via /release-slot
+        # NOTE:
+        # We do NOT release the slot here.
+        # The slot is released physically by the slot sensor flow.
 
         entry_time = datetime.strptime(ticket.get_entry_time(), "%Y-%m-%d %H:%M:%S")
         exit_time = datetime.now()
@@ -130,4 +135,4 @@ class TicketManagerService:
             "duration_hours": round(duration_hours, 2),
             "price": price,
             "message": "Exit processed successfully"
-        } 
+        }

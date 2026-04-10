@@ -6,12 +6,27 @@ import sys
 
 import RPi.GPIO as GPIO
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(CURRENT_DIR)
+
+if CURRENT_DIR not in sys.path:
+    sys.path.append(CURRENT_DIR)
+
+if PARENT_DIR not in sys.path:
+    sys.path.append(PARENT_DIR)
 
 from sensors.ultrasonic_sensor import UltrasonicSensor
 from sensors.camera_sensor import CameraSensor
 from sensors.ldr_sensor import LDRSensor
 from ml_models.vehicle_classification_model import VehicleClassificationModel
+
+from raspberry_pi.data_models.vehicle_type import VehicleType
+from raspberry_pi.repositories.slot_repository import SlotRepository
+from raspberry_pi.repositories.ticket_repository import TicketRepository
+from raspberry_pi.services.slot_manager_service import SlotManagerService
+from raspberry_pi.services.ticket_manager_service import TicketManagerService
+
+from utils.logger_utils import entry_logger, exit_logger, light_logger, main_logger, log_both
 
 CLOUD_API_URL = "http://35.200.128.215:8000"
 
@@ -24,11 +39,9 @@ ENTRY_MAX_DISTANCE = 10
 
 RESET_REQUIRED = 2
 
-from utils.logger_utils import entry_logger, exit_logger, light_logger, main_logger, log_both
-
 
 # ---------------- ENTRY PROCESS ----------------
-def entry_process(entry_sensor, camera, model):
+def entry_process(entry_sensor, camera, model, ticket_manager):
     entry_seen = False
 
     while True:
@@ -59,28 +72,35 @@ def entry_process(entry_sensor, camera, model):
                     time.sleep(2)
                     continue
 
-                vehicle_type = model.classify_vehicle(img_path)
-                log_both(entry_logger, f"Predicted vehicle type: {vehicle_type}")
+                vehicle_type_raw = model.classify_vehicle(img_path)
+                log_both(entry_logger, f"Predicted vehicle type: {vehicle_type_raw}")
 
                 try:
-                    log_both(entry_logger, "Sending ticket request to cloud")
-                    response = requests.post(
-                        f"{CLOUD_API_URL}/ticket",
-                        json={"vehicle_type": vehicle_type},
-                        timeout=5
+                    vehicle_type = VehicleType(vehicle_type_raw)
+                except ValueError:
+                    log_both(
+                        entry_logger,
+                        f"Invalid vehicle type predicted by model: {vehicle_type_raw}",
+                        level="error"
                     )
+                    time.sleep(2)
+                    continue
 
-                    if response.status_code == 200:
-                        log_both(entry_logger, f"Cloud response: {response.json()}")
+                try:
+                    log_both(entry_logger, "Allocating ticket locally on Raspberry Pi")
+                    result = ticket_manager.allocate_ticket(vehicle_type)
+
+                    if result.get("status") == "success":
+                        log_both(entry_logger, f"Local ticket allocation success: {result}")
                     else:
                         log_both(
                             entry_logger,
-                            f"Cloud error {response.status_code}: {response.text}",
-                            level="error"
+                            f"Local ticket allocation failed: {result}",
+                            level="warning"
                         )
 
                 except Exception as e:
-                    log_both(entry_logger, f"Failed to reach cloud API: {e}", level="error")
+                    log_both(entry_logger, f"Failed local ticket allocation: {e}", level="error")
 
             elif not in_range and entry_seen:
                 entry_seen = False
@@ -94,7 +114,7 @@ def entry_process(entry_sensor, camera, model):
 
 
 # ---------------- EXIT PROCESS ----------------
-def exit_process(slot_sensor):
+def exit_process(slot_sensor, slot_manager):
     last_triggered_slot = None
     reset_count = 0
 
@@ -120,26 +140,23 @@ def exit_process(slot_sensor):
                     try:
                         log_both(
                             exit_logger,
-                            f"Sending release request for slot {current_slot} to cloud"
-                        )
-                        response = requests.post(
-                            f"{CLOUD_API_URL}/release-slot",
-                            json={"slot_id": current_slot},
-                            timeout=5
+                            f"Processing slot release locally on Raspberry Pi for slot {current_slot}"
                         )
 
-                        if response.status_code == 200:
-                            log_both(exit_logger, f"Cloud response: {response.json()}")
+                        result = slot_manager.process_release_by_id(current_slot)
+
+                        if result.get("status") in ("success", "ignored"):
+                            log_both(exit_logger, f"Local release result: {result}")
                             last_triggered_slot = current_slot
                         else:
                             log_both(
                                 exit_logger,
-                                f"Cloud error {response.status_code}: {response.text}",
+                                f"Local release failed: {result}",
                                 level="error"
                             )
 
                     except Exception as e:
-                        log_both(exit_logger, f"Failed to reach cloud API: {e}", level="error")
+                        log_both(exit_logger, f"Failed local slot release: {e}", level="error")
 
                 # Still inside same slot range -> ignore silently
 
@@ -246,18 +263,24 @@ def main():
     model_path = os.path.join(os.path.dirname(__file__), "ml_models", "vehicle_model_int8.tflite")
     model = VehicleClassificationModel(model_path)
 
+    slot_repository = SlotRepository()
+    ticket_repository = TicketRepository()
+
+    slot_manager = SlotManagerService(slot_repository)
+    ticket_manager = TicketManagerService(ticket_repository, slot_manager)
+
     log_both(main_logger, "Raspberry Pi Edge Node Started")
 
     entry_thread = threading.Thread(
         target=entry_process,
-        args=(entry_sensor, camera, model),
+        args=(entry_sensor, camera, model, ticket_manager),
         name="ENTRY-THREAD",
         daemon=True
     )
 
     exit_thread = threading.Thread(
         target=exit_process,
-        args=(slot_sensor,),
+        args=(slot_sensor, slot_manager),
         name="EXIT-THREAD",
         daemon=True
     )
