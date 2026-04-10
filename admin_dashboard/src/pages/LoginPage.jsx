@@ -24,7 +24,7 @@ export default function LoginPage() {
         setError(data.message || "Invalid credentials");
       }
     } catch (err) {
-      setError("Authorization failed. Connection lost.");
+      setError("Authorization failed.");
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function LoginPage() {
               <label>Administrator Identity</label>
               <input
                 type="text"
-                placeholder="Ex: Main_Admin"
+                placeholder="Admin"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required

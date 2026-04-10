@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { setManualLight, getLDRStatus, setLDRControl, getLightLogs } from "../services/api.js";
+import { setManualLight, getLDRStatus, setLDRControl, getLightLogs, adminLogin } from "../services/api.js";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
@@ -11,7 +11,47 @@ export default function LightingManagementPage() {
   const [logs, setLogs] = useState([]);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [rowLimit, setRowLimit] = useState("5");
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
   const navigate = useNavigate();
+
+  const requireAuthFor = (action) => {
+    setPendingAction(() => action);
+    setAuthUsername("");
+    setAuthPassword("");
+    setAuthError("");
+    setAuthModalVisible(true);
+  };
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const data = await adminLogin(authUsername, authPassword);
+      if (data.success) {
+        setAuthModalVisible(false);
+        if (pendingAction) {
+          await pendingAction();
+        }
+      } else {
+        setAuthError(data.message || "Invalid credentials");
+      }
+    } catch (err) {
+      setAuthError("Authorization failed.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const cancelAuth = () => {
+    setAuthModalVisible(false);
+    setPendingAction(null);
+  };
 
   const loadLogs = async () => {
     try {
@@ -63,32 +103,39 @@ export default function LightingManagementPage() {
     loadStatus();
   }, []);
 
-  const handleLightToggle = async () => {
-    try {
-      const nextState = !lightStatus;
-      const data = await setManualLight(nextState);
-      setLightStatus(Boolean(data.light_on));
-      setAutoModeState(false);
-      await loadStatus();
-    } catch (error) {
-      console.error("Failed to change light status:", error);
-      alert("Failed to change light status");
-    }
+  const handleLightToggle = () => {
+    requireAuthFor(async () => {
+      try {
+        setLoading(true);
+        const nextState = !lightStatus;
+        const data = await setManualLight(nextState);
+        setLightStatus(Boolean(data.light_on));
+        setAutoModeState(false);
+        await loadStatus();
+      } catch (error) {
+        console.error("Failed to change light status:", error);
+        alert("Failed to change light status");
+      } finally {
+        setLoading(false);
+      }
+    });
   };
 
-  const handleAutoToggle = async () => {
-    try {
-      setLoading(true);
-      const nextState = !autoMode;
-      await setLDRControl(nextState);
-      setAutoModeState(nextState);
-      await loadStatus();
-    } catch (error) {
-      console.error("Failed to change LDR mode:", error);
-      alert("Failed to change LDR mode");
-    } finally {
-      setLoading(false);
-    }
+  const handleAutoToggle = () => {
+    requireAuthFor(async () => {
+      try {
+        setLoading(true);
+        const nextState = !autoMode;
+        await setLDRControl(nextState);
+        setAutoModeState(nextState);
+        await loadStatus();
+      } catch (error) {
+        console.error("Failed to change LDR mode:", error);
+        alert("Failed to change LDR mode");
+      } finally {
+        setLoading(false);
+      }
+    });
   };
 
   return (
@@ -176,6 +223,98 @@ export default function LightingManagementPage() {
         </div>
       </div>
       <Footer />
+
+      {authModalVisible && (
+        <div className="modal-overlay" style={modalOverlayStyle}>
+          <div className="modal-content" style={modalContentStyle}>
+            <h3 style={{marginTop: 0, marginBottom: '20px', color: 'var(--text-primary)', textAlign: 'left'}}>Authentication Required</h3>
+            <p style={{color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px', textAlign: 'left'}}>Please enter admin credentials to proceed with this action.</p>
+            <form onSubmit={handleAuthSubmit}>
+              <div style={{marginBottom: '15px', textAlign: 'left'}}>
+                <label style={{display: 'block', marginBottom: '5px', fontSize: '12px', color: 'var(--text-gray)'}}>Username</label>
+                <input
+                  type="text"
+                  value={authUsername}
+                  onChange={(e) => setAuthUsername(e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </div>
+              <div style={{marginBottom: '20px', textAlign: 'left'}}>
+                <label style={{display: 'block', marginBottom: '5px', fontSize: '12px', color: 'var(--text-gray)'}}>Password</label>
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </div>
+              {authError && <div style={{color: '#ef4444', fontSize: '12px', marginBottom: '15px', textAlign: 'left'}}>{authError}</div>}
+              <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
+                <button type="button" onClick={cancelAuth} style={cancelBtnStyle} disabled={authLoading}>Cancel</button>
+                <button type="submit" style={submitBtnStyle} disabled={authLoading}>
+                  {authLoading ? "Verifying..." : "Confirm"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const modalOverlayStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+  backdropFilter: 'blur(5px)'
+};
+
+const modalContentStyle = {
+  backgroundColor: 'var(--bg-card, #2a2d3e)',
+  border: '1px solid var(--border-color, #3d4052)',
+  borderRadius: '12px',
+  padding: '30px',
+  width: '100%',
+  maxWidth: '400px',
+  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)'
+};
+
+const inputStyle = {
+  width: '100%',
+  padding: '10px 12px',
+  borderRadius: '6px',
+  border: '1px solid var(--border-color, #3d4052)',
+  backgroundColor: 'var(--bg-main, #ebf2f5)',
+  color: 'var(--text-primary, #000000)',
+  boxSizing: 'border-box'
+};
+
+const cancelBtnStyle = {
+  padding: '8px 16px',
+  borderRadius: '6px',
+  border: '1px solid var(--border-color, #3d4052)',
+  backgroundColor: 'var(--primary-color, #ffffff)',
+  color: 'var(--text-primary, #000000)',
+  cursor: 'pointer'
+};
+
+const submitBtnStyle = {
+  padding: '8px 16px',
+  borderRadius: '6px',
+  border: 'none',
+  backgroundColor: 'var(--primary-color, #0c8643)',
+  color: '#ffffff',
+  fontWeight: '600',
+  cursor: 'pointer'
+};
+
