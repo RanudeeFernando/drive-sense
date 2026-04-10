@@ -7,20 +7,14 @@ const API = axios.create({
   },
 });
 
-export const getLightStatus = async () => {
-  const res = await API.get("/light/status");
-  return res.data;
-};
+
 
 export const setManualLight = async (light_on) => {
   const res = await API.post("/light/manual", { light_on });
   return res.data;
 };
 
-export const setAutoMode = async () => {
-  const res = await API.post("/light/auto");
-  return res.data;
-};
+
 
 export const getLDRStatus = async () => {
   const res = await API.get("/ldr-status");

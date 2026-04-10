@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getSlots } from "../services/api.js";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 export default function SlotAvailabilityPage() {
   const [slots, setSlots] = useState([]);
@@ -19,39 +21,18 @@ export default function SlotAvailabilityPage() {
     loadSlots();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminLoggedIn");
-    navigate("/login");
-  };
-
   return (
-    <div className="page">
-      <div className="browser-frame">
-        <div className="browser-top">
-          <div className="browser-tab">slot availability</div>
-          <div className="browser-dots">
-            <span></span>
-            <span></span>
-            <span className="active-dot"></span>
-          </div>
-        </div>
-
-        <div className="browser-address">
-          <span className="fake-url">https://www.drive-sense.io</span>
-        </div>
-
+    <div className="page dashboard-page">
+      <Header />
+      <div className="dashboard-container">
         <div className="tab-bar">
-          <Link className="tab" to="/lighting">
-            Manage automatic lighting system
-          </Link>
-          <button className="tab active">View slot availability</button>
-          <Link className="tab" to="/parking-logs">
-            View parking logs
-          </Link>
+          <Link className="tab" to="/lighting">Lighting</Link>
+          <button className="tab active">Slots</button>
+          <Link className="tab" to="/parking-logs">Logs</Link>
         </div>
 
         <div className="content-area">
-          <h2 className="section-title">Slot Availability</h2>
+          <h2 className="section-title">Parking Availability</h2>
 
           <div className="slots-grid">
             {slots.length > 0 ? (
@@ -65,17 +46,12 @@ export default function SlotAvailabilityPage() {
                 </div>
               ))
             ) : (
-              <p className="empty-text">No slot data available</p>
+              <p className="empty-text">Initialising sensor data...</p>
             )}
-          </div>
-
-          <div className="button-row">
-            <button className="primary-btn" onClick={handleLogout}>
-              Back
-            </button>
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
