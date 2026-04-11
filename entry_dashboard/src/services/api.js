@@ -26,3 +26,12 @@ export const getLatestDriverInfo = async () => {
     };
   }
 };
+
+/**
+ * Poll this every 2 s to drive the entry dashboard UI state machine.
+ * Returns: { status: "idle"|"processing"|"success"|"error", message: string, ticket: object|null }
+ */
+export const getDriverStatus = async () => {
+  const res = await API.get("/driver-view/status");
+  return res.data;
+};

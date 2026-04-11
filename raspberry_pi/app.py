@@ -40,6 +40,20 @@ ENTRY_MAX_DISTANCE = 10
 RESET_REQUIRED = 2
 
 
+# ---------------- STATUS PUSH HELPER ----------------
+def push_driver_status(status: str, message: str = "", ticket: dict = None):
+    """Push a transient UI status to the cloud server state machine."""
+    try:
+        payload = {"status": status, "message": message, "ticket": ticket}
+        requests.put(
+            f"{CLOUD_API_URL}/driver-view/status",
+            json=payload,
+            timeout=5
+        )
+    except Exception as e:
+        log_both(entry_logger, f"Failed to push driver status '{status}': {e}", level="warning")
+
+
 # ---------------- ENTRY PROCESS ----------------
 def entry_process(entry_sensor, camera, model, ticket_manager):
     entry_seen = False
@@ -58,6 +72,9 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
                 entry_seen = True
                 log_both(entry_logger, f"Vehicle detected at entry: {distance} cm")
 
+                # ── STATE: processing ──────────────────────────────────────
+                push_driver_status("processing", "Recognizing vehicle, please wait...")
+
                 img_path = camera.capture_image()
                 log_both(entry_logger, f"Captured image path: {img_path}")
 
@@ -69,6 +86,8 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
                         f"Camera capture did not generate file: {img_path}",
                         level="warning"
                     )
+                    # ── STATE: error (camera failure) ──────────────────────
+                    push_driver_status("error", "Camera error. Please contact staff.")
                     time.sleep(2)
                     continue
 
@@ -83,6 +102,8 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
                         f"Invalid vehicle type predicted by model: {vehicle_type_raw}",
                         level="error"
                     )
+                    # ── STATE: error (invalid vehicle) ────────────────────
+                    push_driver_status("error", "Vehicle recognition failed. Please try again.")
                     time.sleep(2)
                     continue
 
@@ -92,15 +113,22 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
                     if result.get("status") == "success":
                         log_both(entry_logger, f"Local ticket allocation success: {result}")
+                        # ── STATE: success ─────────────────────────────────
+                        push_driver_status("success", "", result)
                     else:
                         log_both(
                             entry_logger,
                             f"Local ticket allocation failed: {result}",
                             level="warning"
                         )
+                        error_detail = result.get("message", "Ticket allocation failed.")
+                        # ── STATE: error (local rejection) ─────────────────
+                        push_driver_status("error", error_detail)
 
                 except Exception as e:
                     log_both(entry_logger, f"Failed local ticket allocation: {e}", level="error")
+                    # ── STATE: error (system failure) ─────────────────────
+                    push_driver_status("error", "System error. Please try again.")
 
             elif not in_range and entry_seen:
                 entry_seen = False
@@ -110,6 +138,8 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
         except Exception as e:
             log_both(entry_logger, f"Unexpected error in entry thread: {e}", level="error")
+            # ── STATE: error (unexpected) ─────────────────────
+            push_driver_status("error", "Unexpected error. Please try again.")
             time.sleep(2)
 
 
