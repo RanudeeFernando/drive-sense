@@ -7,4 +7,5 @@ credentials/
 model_train/dataset
 vehicle_model.h5
 vehicle_model_int8.tflite
-
+dataset/
+dataset.zip
