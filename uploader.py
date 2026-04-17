@@ -60,25 +60,38 @@ def unzip_file(zip_path, extract_to="dataset"):
 
 # ---------------- MERGE ----------------
 def merge_folders():
-    test_path = "test"
-    dataset_path = "dataset"
+    source_path = "captured_images"   
+    dataset_path = "dataset"          
+    if not os.path.exists(source_path):
+        print("❌ No captured_images folder found")
+        return
 
-    for category in ["car", "unknown"]:
-        src = os.path.join(test_path, category)
+    # Loop through ALL categories dynamically
+    for category in os.listdir(source_path):
+        src = os.path.join(source_path, category)
         dst = os.path.join(dataset_path, category)
 
-        if not os.path.exists(src):
+        # Skip if not a folder
+        if not os.path.isdir(src):
             continue
 
         os.makedirs(dst, exist_ok=True)
 
         for file in os.listdir(src):
-            shutil.copy(
-                os.path.join(src, file),
-                os.path.join(dst, file)
-            )
+            src_file = os.path.join(src, file)
+            dst_file = os.path.join(dst, file)
 
-    print("✅ Merged test → dataset")
+            # Avoid overwriting existing files
+            if os.path.exists(dst_file):
+                base, ext = os.path.splitext(file)
+                new_name = f"{base}_new{ext}"
+                dst_file = os.path.join(dst, new_name)
+
+            shutil.copy(src_file, dst_file)
+    shutil.rmtree(source_path)
+    os.makedirs(source_path, exist_ok=True)
+
+    print("✅ Raspberry Pi images merged into dataset")
 
 # ---------------- ZIP AGAIN ----------------
 def zip_folder(folder_path, zip_name):
@@ -101,6 +114,16 @@ def upload_zip(service, zip_name):
     ).execute()
 
     print("Uploaded updated zip")
+
+#----------------- DELETE --------------------
+def delete_old_zip(service):
+    results = service.files().list(
+        q=f"name='dataset_updated.zip' and '{FOLDER_ID}' in parents",
+        fields="files(id)"
+    ).execute()
+
+    for file in results.get('files', []):
+        service.files().delete(fileId=file['id']).execute()
 # ---------------- CLEANUP ----------------
 def cleanup():
     if os.path.exists("token.json"):
@@ -127,6 +150,7 @@ if __name__ == "__main__":
         unzip_file(zip_file)
         merge_folders()
         zip_folder("dataset", "dataset_updated.zip")
+        delete_old_zip(service)
         upload_zip(service, "dataset_updated.zip")
 
     cleanup()

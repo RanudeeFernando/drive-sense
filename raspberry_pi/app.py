@@ -93,6 +93,8 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
                 vehicle_type_raw = model.classify_vehicle(img_path)
                 log_both(entry_logger, f"Predicted vehicle type: {vehicle_type_raw}")
+                camera.move_to_class_folder(vehicle_type_raw, img_path)
+                
 
                 try:
                     vehicle_type = VehicleType(vehicle_type_raw)
