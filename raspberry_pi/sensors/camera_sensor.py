@@ -52,4 +52,6 @@ class CameraSensor(Sensor):
         # MOVE the file (important)
         shutil.move(img_path, new_path)
 
+        return new_path
+
         
