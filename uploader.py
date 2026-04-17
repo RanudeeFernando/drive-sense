@@ -116,14 +116,7 @@ def upload_zip(service, zip_name):
     print("Uploaded updated zip")
 
 #----------------- DELETE --------------------
-def delete_old_zip(service):
-    results = service.files().list(
-        q=f"name='dataset_updated.zip' and '{FOLDER_ID}' in parents",
-        fields="files(id)"
-    ).execute()
 
-    for file in results.get('files', []):
-        service.files().delete(fileId=file['id']).execute()
 # ---------------- CLEANUP ----------------
 def cleanup():
     if os.path.exists("token.json"):
@@ -150,7 +143,6 @@ if __name__ == "__main__":
         unzip_file(zip_file)
         merge_folders()
         zip_folder("dataset", "dataset_updated.zip")
-        delete_old_zip(service)
         upload_zip(service, "dataset_updated.zip")
 
     cleanup()
