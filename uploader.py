@@ -15,12 +15,12 @@ ZIP_NAME = "dataset.zip"
 def authenticate():
     creds = None
 
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    if os.path.exists('credentials.json'):
+        creds = Credentials.from_authorized_user_file('credentials.json', SCOPES)
     else:
         flow = InstalledAppFlow.from_client_secrets_file(
             'credentials/client_credentials.json', SCOPES)
-        creds = flow.run_local_server(port=0)
+        creds = flow.run_console()
 
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
@@ -60,7 +60,7 @@ def unzip_file(zip_path, extract_to="dataset"):
 
 # ---------------- MERGE ----------------
 def merge_folders():
-    source_path = "captured_images"   
+    source_path = "Data"   
     dataset_path = "dataset"          
     if not os.path.exists(source_path):
         print("❌ No captured_images folder found")
