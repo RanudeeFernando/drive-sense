@@ -93,7 +93,9 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
                 vehicle_type_raw = model.classify_vehicle(img_path)
                 log_both(entry_logger, f"Predicted vehicle type: {vehicle_type_raw}")
-                camera.move_to_class_folder(vehicle_type_raw, img_path)
+                local_path=camera.move_to_class_folder(vehicle_type_raw, img_path)
+                send_image_to_cloud(local_path, vehicle_type_raw)
+
                 
 
                 try:
@@ -143,6 +145,26 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
             # ── STATE: error (unexpected) ─────────────────────
             push_driver_status("error", "Unexpected error. Please try again.")
             time.sleep(2)
+
+
+def send_image_to_cloud(image_path, vehicle_type):
+    vehicle_type = vehicle_type.lower()
+
+    if not os.path.exists(image_path):
+        print(f"Image {image_path} not found")
+        return
+
+    files = {"file": open(image_path, "rb")}
+
+    response = requests.post(
+        f"{CLOUD_API_URL}/upload-image/{vehicle_type}",  
+        files=files
+    )
+
+    if response.status_code == 200:
+        print(f"Uploaded image to cloud: {response.json()}")
+    else:
+        print(f"Failed to upload image: {response.status_code} - {response.text}")
 
 
 # ---------------- EXIT PROCESS ----------------
