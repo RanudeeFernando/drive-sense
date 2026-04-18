@@ -25,7 +25,8 @@ class TicketMemoryStore:
             "price",
             "status",
             "pin_code",
-            "pin_status"
+            "pin_status",
+            "is_synced",
         ]
 
         self._ensure_file_exists()
@@ -35,6 +36,30 @@ class TicketMemoryStore:
             with open(self.csv_path, "w", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
                 writer.writeheader()
+            return
+
+        # Upgrade old CSV files that do not yet have is_synced
+        with open(self.csv_path, "r", newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            existing_fields = reader.fieldnames or []
+
+        if "is_synced" not in existing_fields:
+            rows = []
+            with open(self.csv_path, "r", newline="") as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    row["is_synced"] = "True"
+                    rows.append(row)
+
+            with open(self.csv_path, "w", newline="") as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow(row)
+
+    @staticmethod
+    def _to_bool(value) -> bool:
+        return str(value).strip().lower() in ("true", "1", "yes")
 
     def _build_slot(self, slot_id: int, vehicle_type: VehicleType) -> ParkingSlot:
         return ParkingSlot(
@@ -42,7 +67,7 @@ class TicketMemoryStore:
             slot_type=vehicle_type,
             slot_length=0.0,
             slot_width=0.0,
-            is_occupied=False
+            is_occupied=False,
         )
 
     def _row_to_ticket(self, row: dict) -> Ticket:
@@ -59,10 +84,10 @@ class TicketMemoryStore:
             price=float(row.get("price", 0) or 0),
             status=row.get("status", "active"),
             pin_code=row.get("pin_code", ""),
-            pin_status=row.get("pin_status", "active")
+            pin_status=row.get("pin_status", "active"),
         )
 
-    def _ticket_to_row(self, ticket: Ticket) -> dict:
+    def _ticket_to_row(self, ticket: Ticket, is_synced: bool = True) -> dict:
         return {
             "ticket_id": ticket.get_ticket_id(),
             "slot_id": str(ticket.get_slot_id()),
@@ -73,7 +98,8 @@ class TicketMemoryStore:
             "price": str(ticket.get_price()),
             "status": ticket.get_status(),
             "pin_code": ticket.get_pin_code(),
-            "pin_status": ticket.get_pin_status()
+            "pin_status": ticket.get_pin_status(),
+            "is_synced": str(is_synced),
         }
 
     def get_all_tickets(self) -> List[Ticket]:
@@ -87,29 +113,63 @@ class TicketMemoryStore:
 
         return tickets
 
-    def overwrite_all_tickets(self, tickets: List[Ticket]) -> None:
+    def get_all_rows(self) -> List[dict]:
         self._ensure_file_exists()
+
+        rows = []
+        with open(self.csv_path, "r", newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if "is_synced" not in row:
+                    row["is_synced"] = "True"
+                rows.append(row)
+
+        return rows
+
+    def overwrite_all_rows(self, rows: List[dict]) -> None:
+        self._ensure_file_exists()
+
+        normalized_rows = []
+        for row in rows:
+            normalized = {
+                "ticket_id": str(row["ticket_id"]),
+                "slot_id": str(row["slot_id"]),
+                "vehicle_type": str(row["vehicle_type"]),
+                "entry_time": str(row["entry_time"]),
+                "exit_time": str(row.get("exit_time", "")),
+                "duration_minutes": str(row.get("duration_minutes", 0)),
+                "price": str(row.get("price", 0)),
+                "status": str(row.get("status", "active")),
+                "pin_code": str(row.get("pin_code", "")),
+                "pin_status": str(row.get("pin_status", "active")),
+                "is_synced": str(row.get("is_synced", True)),
+            }
+            normalized_rows.append(normalized)
 
         with open(self.csv_path, "w", newline="") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
             writer.writeheader()
-            for ticket in tickets:
-                writer.writerow(self._ticket_to_row(ticket))
+            for row in normalized_rows:
+                writer.writerow(row)
 
-    def upsert_ticket(self, ticket: Ticket) -> None:
-        tickets = self.get_all_tickets()
+    def overwrite_all_tickets(self, tickets: List[Ticket], is_synced: bool = True) -> None:
+        rows = [self._ticket_to_row(ticket, is_synced=is_synced) for ticket in tickets]
+        self.overwrite_all_rows(rows)
+
+    def upsert_ticket(self, ticket: Ticket, is_synced: bool = True) -> None:
+        rows = self.get_all_rows()
         updated = False
 
-        for index, existing_ticket in enumerate(tickets):
-            if existing_ticket.get_ticket_id() == ticket.get_ticket_id():
-                tickets[index] = ticket
+        for index, existing_row in enumerate(rows):
+            if existing_row["ticket_id"] == ticket.get_ticket_id():
+                rows[index] = self._ticket_to_row(ticket, is_synced=is_synced)
                 updated = True
                 break
 
         if not updated:
-            tickets.append(ticket)
+            rows.append(self._ticket_to_row(ticket, is_synced=is_synced))
 
-        self.overwrite_all_tickets(tickets)
+        self.overwrite_all_rows(rows)
 
     def get_ticket_by_id(self, ticket_id: str):
         tickets = self.get_all_tickets()
@@ -132,7 +192,15 @@ class TicketMemoryStore:
                 return ticket
         return None
 
-    def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType, ticket_id: str, pin_code: str, entry_time: str) -> dict:
+    def generate_ticket(
+        self,
+        parking_slot: ParkingSlot,
+        vehicle_type: VehicleType,
+        ticket_id: str,
+        pin_code: str,
+        entry_time: str,
+        is_synced: bool = False,
+    ) -> dict:
         ticket = Ticket(
             ticket_id=ticket_id,
             parking_slot=parking_slot,
@@ -143,17 +211,17 @@ class TicketMemoryStore:
             price=0,
             status="active",
             pin_code=pin_code,
-            pin_status="active"
+            pin_status="active",
         )
 
-        self.upsert_ticket(ticket)
+        self.upsert_ticket(ticket, is_synced=is_synced)
 
         return {
             "ticket_id": ticket_id,
             "pin_code": pin_code,
             "entry_time": entry_time,
             "slot_id": parking_slot.get_slot_id(),
-            "vehicle_type": vehicle_type.value
+            "vehicle_type": vehicle_type.value,
         }
 
     def update_ticket_on_exit(
@@ -161,21 +229,43 @@ class TicketMemoryStore:
         ticket_id: str,
         exit_time: str,
         duration_minutes: float,
-        price: float
+        price: float,
+        is_synced: bool = False,
     ) -> bool:
-        tickets = self.get_all_tickets()
+        rows = self.get_all_rows()
 
-        for ticket in tickets:
-            if ticket.get_ticket_id() == ticket_id:
-                ticket.set_exit_time(exit_time)
-                ticket.set_duration_minutes(round(duration_minutes, 2))
-                ticket.set_price(price)
-                ticket.set_status("closed")
-                ticket.set_pin_status("expired")
-                self.overwrite_all_tickets(tickets)
+        for row in rows:
+            if row["ticket_id"] == ticket_id:
+                row["exit_time"] = exit_time
+                row["duration_minutes"] = str(round(duration_minutes, 2))
+                row["price"] = str(price)
+                row["status"] = "closed"
+                row["pin_status"] = "expired"
+                row["is_synced"] = str(is_synced)
+                self.overwrite_all_rows(rows)
                 return True
 
         return False
 
     def seed_from_tickets(self, tickets: List[Ticket]) -> None:
-        self.overwrite_all_tickets(tickets)
+        self.overwrite_all_tickets(tickets, is_synced=True)
+
+    def get_unsynced_tickets(self) -> List[Ticket]:
+        rows = self.get_all_rows()
+        unsynced = []
+
+        for row in rows:
+            if not self._to_bool(row.get("is_synced", True)):
+                unsynced.append(self._row_to_ticket(row))
+
+        return unsynced
+
+    def mark_ticket_synced(self, ticket_id: str) -> None:
+        rows = self.get_all_rows()
+
+        for row in rows:
+            if row["ticket_id"] == ticket_id:
+                row["is_synced"] = "True"
+                break
+
+        self.overwrite_all_rows(rows)

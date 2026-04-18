@@ -23,7 +23,7 @@ class TicketRepository:
             slot_type=vehicle_type,
             slot_length=0.0,
             slot_width=0.0,
-            is_occupied=False
+            is_occupied=False,
         )
 
     def generate_pin_code(self) -> str:
@@ -53,7 +53,7 @@ class TicketRepository:
             price=float(data.get("price", 0)),
             status=data.get("status", "active"),
             pin_code=data.get("pin_code", ""),
-            pin_status=data.get("pin_status", "active")
+            pin_status=data.get("pin_status", "active"),
         )
 
     def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> dict:
@@ -72,23 +72,26 @@ class TicketRepository:
             price=0,
             status="active",
             pin_code=pin_code,
-            pin_status="active"
+            pin_status="active",
         )
+
+        firestore_success = False
 
         try:
             doc_ref = self.collection.document(ticket_id)
             doc_ref.set(ticket.to_dict())
+            firestore_success = True
         except Exception:
             pass
 
-        self.memory_store.upsert_ticket(ticket)
+        self.memory_store.upsert_ticket(ticket, is_synced=firestore_success)
 
         return {
             "ticket_id": ticket_id,
             "pin_code": pin_code,
             "entry_time": entry_time,
             "slot_id": parking_slot.get_slot_id(),
-            "vehicle_type": vehicle_type.value
+            "vehicle_type": vehicle_type.value,
         }
 
     def get_ticket_by_id(self, ticket_id: str):
@@ -96,7 +99,7 @@ class TicketRepository:
             doc = self.collection.document(ticket_id).get()
             if doc.exists:
                 ticket = self._doc_to_ticket(doc)
-                self.memory_store.upsert_ticket(ticket)
+                self.memory_store.upsert_ticket(ticket, is_synced=True)
                 return ticket
             return None
         except Exception:
@@ -149,10 +152,9 @@ class TicketRepository:
         ticket_id: str,
         exit_time: datetime,
         duration_minutes: float,
-        price: float
+        price: float,
     ) -> bool:
         exit_time_str = exit_time.strftime("%Y-%m-%d %H:%M:%S")
-
         firestore_success = False
 
         try:
@@ -165,7 +167,7 @@ class TicketRepository:
                     "duration_minutes": round(duration_minutes, 2),
                     "price": price,
                     "status": "closed",
-                    "pin_status": "expired"
+                    "pin_status": "expired",
                 })
                 firestore_success = True
         except Exception:
@@ -175,7 +177,8 @@ class TicketRepository:
             ticket_id=ticket_id,
             exit_time=exit_time_str,
             duration_minutes=duration_minutes,
-            price=price
+            price=price,
+            is_synced=firestore_success,
         )
 
         return firestore_success or memory_success
@@ -188,6 +191,18 @@ class TicketRepository:
             return tickets
         except Exception:
             return self.memory_store.get_all_tickets()
+
+    def sync_unsynced_tickets_to_firestore(self) -> int:
+        synced_count = 0
+        unsynced_tickets = self.memory_store.get_unsynced_tickets()
+
+        for ticket in unsynced_tickets:
+            doc_ref = self.collection.document(ticket.get_ticket_id())
+            doc_ref.set(ticket.to_dict(), merge=True)
+            self.memory_store.mark_ticket_synced(ticket.get_ticket_id())
+            synced_count += 1
+
+        return synced_count
 
     def _sync_tickets_from_firestore(self) -> None:
         try:

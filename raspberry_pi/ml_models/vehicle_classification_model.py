@@ -41,3 +41,5 @@ class VehicleClassificationModel:
 
         print(f"🔍 Classified as: {result} (Confidence: {confidence}%)")
         return result
+    
+    

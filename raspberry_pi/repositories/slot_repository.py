@@ -18,14 +18,10 @@ class SlotRepository:
             slot_type=VehicleType(data["slot_type"]),
             slot_length=float(data["slot_length"]),
             slot_width=float(data["slot_width"]),
-            is_occupied=bool(data["is_occupied"])
+            is_occupied=bool(data["is_occupied"]),
         )
 
     def find_available_slot(self, vehicle_type: VehicleType):
-        """
-        Firestore first.
-        If Firestore fails, fall back to local CSV memory.
-        """
         try:
             docs = (
                 self.collection
@@ -40,37 +36,25 @@ class SlotRepository:
                 found_slot = self._doc_to_slot(doc)
                 break
 
-            # Refresh local memory from Firestore whenever possible
             self._sync_slots_from_firestore()
-
             return found_slot
 
         except Exception:
             return self.memory_store.find_available_slot(vehicle_type)
 
     def get_slot_by_id(self, slot_id: int):
-        """
-        Firestore first.
-        If Firestore fails, fall back to local CSV memory.
-        """
         try:
             doc = self.collection.document(str(slot_id)).get()
             if doc.exists:
                 slot = self._doc_to_slot(doc)
-                self.memory_store.upsert_slot(slot)
+                self.memory_store.upsert_slot(slot, is_synced=True)
                 return slot
-
             return None
 
         except Exception:
             return self.memory_store.get_slot_by_id(slot_id)
 
     def reserve_slot(self, slot_id: int) -> bool:
-        """
-        Try Firestore first.
-        Always keep local CSV updated.
-        If Firestore fails, fall back to local CSV memory.
-        """
         try:
             doc_ref = self.collection.document(str(slot_id))
             doc = doc_ref.get()
@@ -87,19 +71,14 @@ class SlotRepository:
             slot = self.get_slot_by_id(slot_id)
             if slot is not None:
                 slot.set_slot_status(True)
-                self.memory_store.upsert_slot(slot)
+                self.memory_store.upsert_slot(slot, is_synced=True)
 
             return True
 
         except Exception:
-            return self.memory_store.reserve_slot(slot_id)
+            return self.memory_store.reserve_slot(slot_id, is_synced=False)
 
     def release_slot(self, slot_id: int) -> bool:
-        """
-        Try Firestore first.
-        Always keep local CSV updated.
-        If Firestore fails, fall back to local CSV memory.
-        """
         try:
             doc_ref = self.collection.document(str(slot_id))
             doc = doc_ref.get()
@@ -116,32 +95,36 @@ class SlotRepository:
             slot = self.get_slot_by_id(slot_id)
             if slot is not None:
                 slot.set_slot_status(False)
-                self.memory_store.upsert_slot(slot)
+                self.memory_store.upsert_slot(slot, is_synced=True)
 
             return True
 
         except Exception:
-            return self.memory_store.release_slot(slot_id)
+            return self.memory_store.release_slot(slot_id, is_synced=False)
 
     def get_all_slots(self):
-        """
-        Firestore first.
-        If Firestore fails, fall back to local CSV memory.
-        """
         try:
             docs = self.collection.stream()
             slots = [self._doc_to_slot(doc) for doc in docs]
-
             self.memory_store.seed_from_slots(slots)
             return slots
 
         except Exception:
             return self.memory_store.get_all_slots()
 
+    def sync_unsynced_slots_to_firestore(self) -> int:
+        synced_count = 0
+        unsynced_slots = self.memory_store.get_unsynced_slots()
+
+        for slot in unsynced_slots:
+            doc_ref = self.collection.document(str(slot.get_slot_id()))
+            doc_ref.set(slot.to_dict(), merge=True)
+            self.memory_store.mark_slot_synced(slot.get_slot_id())
+            synced_count += 1
+
+        return synced_count
+
     def _sync_slots_from_firestore(self) -> None:
-        """
-        Best-effort sync of all Firestore slots into local CSV memory.
-        """
         try:
             docs = self.collection.stream()
             slots = [self._doc_to_slot(doc) for doc in docs]

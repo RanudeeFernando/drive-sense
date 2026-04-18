@@ -33,6 +33,7 @@ CLOUD_API_URL = "http://35.200.128.215:8000"
 ENTRY_POLL_INTERVAL = 1
 EXIT_POLL_INTERVAL = 1
 LIGHT_POLL_INTERVAL = 5
+SYNC_POLL_INTERVAL = 5
 
 ENTRY_MIN_DISTANCE = 0
 ENTRY_MAX_DISTANCE = 10
@@ -93,10 +94,9 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
                 vehicle_type_raw = model.classify_vehicle(img_path)
                 log_both(entry_logger, f"Predicted vehicle type: {vehicle_type_raw}")
-                local_path=camera.move_to_class_folder(vehicle_type_raw, img_path)
-                send_image_to_cloud(local_path, vehicle_type_raw)
 
-                
+                local_path = camera.move_to_class_folder(vehicle_type_raw, img_path)
+                send_image_to_cloud(local_path, vehicle_type_raw)
 
                 try:
                     vehicle_type = VehicleType(vehicle_type_raw)
@@ -157,7 +157,7 @@ def send_image_to_cloud(image_path, vehicle_type):
     files = {"file": open(image_path, "rb")}
 
     response = requests.post(
-        f"{CLOUD_API_URL}/upload-image/{vehicle_type}",  
+        f"{CLOUD_API_URL}/upload-image/{vehicle_type}",
         files=files
     )
 
@@ -323,6 +323,28 @@ def preload_local_memory(slot_repository, ticket_repository):
         log_both(main_logger, f"Failed to preload ticket memory: {e}", level="warning")
 
 
+def recovery_sync_process(slot_repository, ticket_repository):
+    """
+    Periodically tries to push locally unsynced CSV changes back to Firestore.
+    If Firestore is still unavailable, it simply retries later.
+    """
+    while True:
+        try:
+            synced_slots = slot_repository.sync_unsynced_slots_to_firestore()
+            synced_tickets = ticket_repository.sync_unsynced_tickets_to_firestore()
+
+            if synced_slots > 0:
+                log_both(main_logger, f"Recovered and synced {synced_slots} slot record(s) to Firestore")
+
+            if synced_tickets > 0:
+                log_both(main_logger, f"Recovered and synced {synced_tickets} ticket record(s) to Firestore")
+
+        except Exception as e:
+            log_both(main_logger, f"Recovery sync skipped: {e}", level="warning")
+
+        time.sleep(SYNC_POLL_INTERVAL)
+
+
 # ---------------- MAIN ----------------
 def main():
     entry_sensor = UltrasonicSensor(1, "Entry Sensor", 23, 24)
@@ -364,9 +386,17 @@ def main():
         daemon=True
     )
 
+    sync_thread = threading.Thread(
+        target=recovery_sync_process,
+        args=(slot_repository, ticket_repository),
+        name="SYNC-THREAD",
+        daemon=True
+    )
+
     entry_thread.start()
     exit_thread.start()
     light_thread.start()
+    sync_thread.start()
 
     try:
         while True:
