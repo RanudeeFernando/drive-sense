@@ -1,12 +1,27 @@
 from datetime import datetime
+import threading
+import time
 
 from raspberry_pi.data_models.vehicle_type import VehicleType, PARKING_RATES
 
 
 class TicketManagerService:
-    def __init__(self, ticket_repository, slot_manager_service):
+    def __init__(self, ticket_repository, slot_manager_service, green_light,red_light):
         self.ticket_repository = ticket_repository
         self.slot_manager_service = slot_manager_service
+        self.green_light = green_light
+        self.red_light = red_light
+    
+    def _allow_exit_signal(self):
+        self.red_light.turn_off()
+        self.green_light.turn_on()
+        
+        time.sleep(10)
+
+        self.green_light.turn_off()
+        self.red_light.turn_on()
+
+        
 
     def allocate_ticket(self, vehicle_type: VehicleType) -> dict:
         available_slot = self.slot_manager_service.find_available_slot(vehicle_type)
@@ -101,7 +116,8 @@ class TicketManagerService:
                 "status": "failed",
                 "message": f"No active ticket found with PIN: {pin_code}"
             }
-
+        
+        threading.Thread(target=self._allow_exit_signal, daemon=True).start()
         slot_id = ticket.get_slot_id()
 
         # NOTE:
@@ -123,6 +139,7 @@ class TicketManagerService:
             duration_minutes=duration_minutes,
             price=price
         )
+
 
         return {
             "status": "success",

@@ -15,6 +15,7 @@ if CURRENT_DIR not in sys.path:
 if PARENT_DIR not in sys.path:
     sys.path.append(PARENT_DIR)
 
+from raspberry_pi.sensors.led_light import LEDLight
 from sensors.ultrasonic_sensor import UltrasonicSensor
 from sensors.camera_sensor import CameraSensor
 from sensors.ldr_sensor import LDRSensor
@@ -357,11 +358,17 @@ def main():
 
     slot_repository = SlotRepository()
     ticket_repository = TicketRepository()
+    green_light=LEDLight(pin=17)
+    red_light=LEDLight(pin=27)
+
+    # Initialize lights to default state (red on, green off)
+    red_light.turn_on()
+    green_light.turn_off()
 
     preload_local_memory(slot_repository, ticket_repository)
 
     slot_manager = SlotManagerService(slot_repository)
-    ticket_manager = TicketManagerService(ticket_repository, slot_manager)
+    ticket_manager = TicketManagerService(ticket_repository, slot_manager, green_light,red_light)
 
     log_both(main_logger, "Raspberry Pi Edge Node Started")
 
