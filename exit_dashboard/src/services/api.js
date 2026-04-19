@@ -23,3 +23,15 @@ export const verifyPin = async (pinCode) => {
     throw err;
   }
 };
+
+export const processPayment = async (ticketId) => {
+  try {
+    const res = await API.post("/exit/pay", { ticket_id: ticketId });
+    return res.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+      throw new Error(error.response.data.detail || "Payment failed");
+    }
+    throw new Error("Payment failed. Please try again.");
+  }
+};

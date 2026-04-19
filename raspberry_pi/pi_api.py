@@ -60,6 +60,9 @@ ticket_manager_service = TicketManagerService(
 class VerifyPinRequest(BaseModel):
     pin_code: str
 
+class PaymentRequest(BaseModel):
+    ticket_id: str
+
 class DriverStatusUpdate(BaseModel):
     status: str           # "processing" | "success" | "error"
     message: str = ""
@@ -94,6 +97,15 @@ def get_latest_driver_view():
 @router.post("/exit/verify-pin")
 def process_exit_by_pin(req: VerifyPinRequest):
     result = ticket_manager_service.process_exit_by_pin(req.pin_code)
+
+    if result["status"] == "failed":
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return result
+
+@router.post("/exit/pay")
+def process_payment(req: PaymentRequest):
+    result = ticket_manager_service.process_payment(req.ticket_id)
 
     if result["status"] == "failed":
         raise HTTPException(status_code=400, detail=result["message"])

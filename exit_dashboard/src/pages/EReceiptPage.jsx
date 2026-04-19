@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { verifyPin } from "../services/api";
+import { verifyPin, processPayment } from "../services/api";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
@@ -55,8 +55,18 @@ export default function EReceiptPage() {
     }
   };
 
-  const handleProceedPayment = () => {
-    setView("success");
+  const handleProceedPayment = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await processPayment(receipt.ticket_id);
+      setView("success");
+    } catch (err) {
+      setError(err.message || "Payment failed.");
+      alert(err.message || "Payment failed.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -143,8 +153,9 @@ export default function EReceiptPage() {
                 <button
                   className="primary-btn"
                   onClick={handleProceedPayment}
+                  disabled={loading}
                 >
-                  PROCEED PAYMENT
+                  {loading ? "PROCESSING..." : "PROCEED PAYMENT"}
                 </button>
               </div>
             </div>

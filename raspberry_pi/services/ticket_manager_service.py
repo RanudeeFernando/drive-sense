@@ -117,7 +117,6 @@ class TicketManagerService:
                 "message": f"No active ticket found with PIN: {pin_code}"
             }
         
-        threading.Thread(target=self._allow_exit_signal, daemon=True).start()
         slot_id = ticket.get_slot_id()
 
         # NOTE:
@@ -152,4 +151,19 @@ class TicketManagerService:
             "duration_hours": round(duration_hours, 2),
             "price": price,
             "message": "Exit processed successfully"
+        }
+
+    def process_payment(self, ticket_id: str) -> dict:
+        ticket = self.ticket_repository.get_ticket_by_id(ticket_id)
+        if ticket is None:
+            return {
+                "status": "failed",
+                "message": f"Ticket not found: {ticket_id}"
+            }
+        
+        threading.Thread(target=self._allow_exit_signal, daemon=True).start()
+        
+        return {
+            "status": "success",
+            "message": "Payment verified, gate opened."
         }
