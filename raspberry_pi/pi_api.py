@@ -7,6 +7,7 @@ from typing import Optional
 
 from raspberry_pi.repositories.slot_repository import SlotRepository
 from raspberry_pi.repositories.ticket_repository import TicketRepository
+from raspberry_pi.sensors.led_light import LEDLight
 from raspberry_pi.services.slot_manager_service import SlotManagerService
 from raspberry_pi.services.ticket_manager_service import TicketManagerService
 
@@ -43,12 +44,16 @@ def _schedule_reset(delay: int):
 # Repositories
 slot_repository = SlotRepository()
 ticket_repository = TicketRepository()
+green_light=LEDLight(pin=17)
+red_light=LEDLight(pin=27)
 
 # Services
 slot_manager_service = SlotManagerService(slot_repository)
 ticket_manager_service = TicketManagerService(
     ticket_repository=ticket_repository,
-    slot_manager_service=slot_manager_service
+    slot_manager_service=slot_manager_service,
+    green_light=green_light,
+    red_light=red_light
 )
 
 
