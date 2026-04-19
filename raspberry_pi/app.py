@@ -30,6 +30,7 @@ from raspberry_pi.services.ticket_manager_service import TicketManagerService
 from utils.logger_utils import entry_logger, exit_logger, light_logger, main_logger, log_both
 
 CLOUD_API_URL = "http://35.200.128.215:8000"
+PI_API_URL = "http://127.0.0.1:8001"
 
 ENTRY_POLL_INTERVAL = 1
 EXIT_POLL_INTERVAL = 1
@@ -48,7 +49,7 @@ def push_driver_status(status: str, message: str = "", ticket: dict = None):
     try:
         payload = {"status": status, "message": message, "ticket": ticket}
         requests.put(
-            f"{CLOUD_API_URL}/driver-view/status",
+            f"{PI_API_URL}/driver-view/status",
             json=payload,
             timeout=5
         )
