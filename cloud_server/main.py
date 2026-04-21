@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from cloud_server.cloud_api import router
 
-app = FastAPI(title="Smart Parking Cloud API ☁️")
+app = FastAPI(title="Smart Parking Cloud API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,9 +25,21 @@ def home():
     return {"message": "Smart Parking Cloud Server API Running!"}
 
 def run_model_training():
-    print("Starting scheduled model training...")
+    print("Starting scheduled tasks...")
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    uploader_script_path = os.path.join(project_root, "uploader.py")
     model_script_path = os.path.join(project_root, "model_train", "model.py")
+    
+    print("Running uploader...")
+    try:
+        subprocess.run([sys.executable, uploader_script_path], check=True)
+        print("Uploader completed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Uploader failed with error: {e}")
+    except Exception as e:
+        print(f"Unexpected error during uploader: {e}")
+
+    print("Starting scheduled model training...")
     try:
         subprocess.run([sys.executable, model_script_path], check=True)
         print("Model training completed successfully.")

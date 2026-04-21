@@ -163,7 +163,7 @@ def get_light_logs():
 
 
 
-DATA_DIR = "Data"
+DATA_DIR = "cloud_server/model_train/Data"
 CLASSES = ["car", "bike", "lorry", "unknown"]
 
 for cls in CLASSES:
