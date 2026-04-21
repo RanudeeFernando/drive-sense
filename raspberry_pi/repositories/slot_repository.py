@@ -18,10 +18,14 @@ class SlotRepository:
             slot_type=VehicleType(data["slot_type"]),
             slot_length=float(data["slot_length"]),
             slot_width=float(data["slot_width"]),
-            is_occupied=bool(data["is_occupied"]),
+            is_occupied=bool(data["is_occupied"])
         )
 
     def find_available_slot(self, vehicle_type: VehicleType):
+        """
+        Firestore first.
+        If Firestore fails, fall back to local CSV memory.
+        """
         try:
             docs = (
                 self.collection
@@ -36,31 +40,48 @@ class SlotRepository:
                 found_slot = self._doc_to_slot(doc)
                 break
 
+            # Only sync from Firestore if Firestore actually has slot data
             self._sync_slots_from_firestore()
-            return found_slot
+
+            if found_slot is not None:
+                return found_slot
+
+            # If Firestore returned no matching slot, fall back to current CSV content
+            return self.memory_store.find_available_slot(vehicle_type)
 
         except Exception:
             return self.memory_store.find_available_slot(vehicle_type)
 
     def get_slot_by_id(self, slot_id: int):
+        """
+        Firestore first.
+        If Firestore fails, fall back to local CSV memory.
+        """
         try:
             doc = self.collection.document(str(slot_id)).get()
             if doc.exists:
                 slot = self._doc_to_slot(doc)
-                self.memory_store.upsert_slot(slot, is_synced=True)
+                self.memory_store.upsert_slot(slot)
                 return slot
-            return None
+
+            
+            return self.memory_store.get_slot_by_id(slot_id)
 
         except Exception:
             return self.memory_store.get_slot_by_id(slot_id)
 
     def reserve_slot(self, slot_id: int) -> bool:
+        """
+        Try Firestore first.
+        Always keep local CSV updated.
+        If Firestore fails, fall back to local CSV memory.
+        """
         try:
             doc_ref = self.collection.document(str(slot_id))
             doc = doc_ref.get()
 
             if not doc.exists:
-                return False
+                return self.memory_store.reserve_slot(slot_id)
 
             data = doc.to_dict()
             if data.get("is_occupied", False):
@@ -71,20 +92,25 @@ class SlotRepository:
             slot = self.get_slot_by_id(slot_id)
             if slot is not None:
                 slot.set_slot_status(True)
-                self.memory_store.upsert_slot(slot, is_synced=True)
+                self.memory_store.upsert_slot(slot)
 
             return True
 
         except Exception:
-            return self.memory_store.reserve_slot(slot_id, is_synced=False)
+            return self.memory_store.reserve_slot(slot_id)
 
     def release_slot(self, slot_id: int) -> bool:
+        """
+        Try Firestore first.
+        Always keep local CSV updated.
+        If Firestore fails, fall back to local CSV memory.
+        """
         try:
             doc_ref = self.collection.document(str(slot_id))
             doc = doc_ref.get()
 
             if not doc.exists:
-                return False
+                return self.memory_store.release_slot(slot_id)
 
             data = doc.to_dict()
             if not data.get("is_occupied", False):
@@ -95,39 +121,52 @@ class SlotRepository:
             slot = self.get_slot_by_id(slot_id)
             if slot is not None:
                 slot.set_slot_status(False)
-                self.memory_store.upsert_slot(slot, is_synced=True)
+                self.memory_store.upsert_slot(slot)
 
             return True
 
         except Exception:
-            return self.memory_store.release_slot(slot_id, is_synced=False)
+            return self.memory_store.release_slot(slot_id)
 
     def get_all_slots(self):
+        """
+        Firestore first.
+        If Firestore fails, fall back to local CSV memory.
+
+        IMPORTANT:
+        Do not overwrite CSV with an empty Firestore result.
+        """
         try:
             docs = self.collection.stream()
             slots = [self._doc_to_slot(doc) for doc in docs]
-            self.memory_store.seed_from_slots(slots)
-            return slots
+
+            
+            if len(slots) > 0:
+                self.memory_store.seed_from_slots(slots)
+                return slots
+
+            
+            existing_csv_slots = self.memory_store.get_all_slots()
+            if len(existing_csv_slots) > 0:
+                return existing_csv_slots
+
+        
+            return []
 
         except Exception:
             return self.memory_store.get_all_slots()
 
-    def sync_unsynced_slots_to_firestore(self) -> int:
-        synced_count = 0
-        unsynced_slots = self.memory_store.get_unsynced_slots()
-
-        for slot in unsynced_slots:
-            doc_ref = self.collection.document(str(slot.get_slot_id()))
-            doc_ref.set(slot.to_dict(), merge=True)
-            self.memory_store.mark_slot_synced(slot.get_slot_id())
-            synced_count += 1
-
-        return synced_count
-
     def _sync_slots_from_firestore(self) -> None:
+        """
+        Best-effort sync of all Firestore slots into local CSV memory.
+        Do not wipe CSV if Firestore returns zero rows.
+        """
         try:
             docs = self.collection.stream()
             slots = [self._doc_to_slot(doc) for doc in docs]
-            self.memory_store.seed_from_slots(slots)
+
+            if len(slots) > 0:
+                self.memory_store.seed_from_slots(slots)
+
         except Exception:
             pass
