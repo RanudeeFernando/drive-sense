@@ -1,11 +1,28 @@
+# Python environment and compilation
 /venv
 __pycache__/
+
+# Node/UI dependencies
 node_modules
 
-# Google Cloud credentials - NEVER commit these
+# Environment Variables
+.env
+*.env
+
+# Cloud and API Credentials
 credentials/
+
+# ML models and datasets
 model_train/dataset
 vehicle_model.h5
 vehicle_model_int8.tflite
 dataset/
 dataset.zip
+
+# Logs
+*.log
+raspberry_pi/logs/
+*.out
+
+# CSV/ Local Storage files
+*.csv
