@@ -12,6 +12,9 @@ from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from tensorflow.keras.optimizers import Adam
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -25,19 +28,16 @@ CLASSES = ["bike", "car", "lorry", "unknown"]
 
 IMG_SIZE = (224, 224)
 BATCH_SIZE = 32
-EPOCHS = 10
+EPOCHS = 1
 
 MODEL_PATH = "cloud_server/model_train/vehicle_model.h5"
 TFLITE_PATH = "cloud_server/model_train/vehicle_model_int8.tflite"
+REPORTS_DIR = "cloud_server/model_train/reports"
 
 # =========================
 # DOWNLOAD DATASET
 # =========================
 def download_dataset():
-    if os.path.exists(DATASET_ZIP_PATH):
-        print("✅ dataset.zip already exists. Skipping download.")
-        return
-
     print("⬇️ Downloading dataset from Google Drive...")
 
     folder_id = "1bV0oOqbcMOPoO0HN83WwoYvgxzxSOEke"
@@ -60,24 +60,29 @@ def download_dataset():
 def prepare_dataset():
     print("📂 Preparing dataset...")
 
-    if os.path.exists(DATASET_ZIP_PATH):
-        print(f"📦 Extracting {DATASET_ZIP_PATH}...")
-        if os.path.exists(BASE_DATASET_DIR):
-            shutil.rmtree(BASE_DATASET_DIR)
+    zip_files = [f for f in os.listdir("model_train") if f.endswith('.zip')]
+    if not zip_files:
+        raise FileNotFoundError("❌ No zip files found after download.")
 
-        with zipfile.ZipFile(DATASET_ZIP_PATH, 'r') as zip_ref:
-            zip_ref.extractall(BASE_DATASET_DIR)
-            
-        # Fix nested dataset issue
-        nested_dir = os.path.join(BASE_DATASET_DIR, "dataset")
-        if os.path.exists(nested_dir):
-            for item in os.listdir(nested_dir):
-                shutil.move(os.path.join(nested_dir, item), os.path.join(BASE_DATASET_DIR, item))
-            os.rmdir(nested_dir)
+    # Sort by modification time descending (latest first)
+    zip_files.sort(key=lambda x: os.path.getmtime(os.path.join("model_train", x)), reverse=True)
+    zip_path = os.path.join("model_train", zip_files[0])
+    print(f"📦 Using latest zip: {zip_path}")
 
-        print("✅ Extraction complete.")
-    else:
-        raise FileNotFoundError("❌ dataset.zip not found after download.")
+    if os.path.exists(BASE_DATASET_DIR):
+        shutil.rmtree(BASE_DATASET_DIR)
+
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(BASE_DATASET_DIR)
+        
+    # Fix nested dataset issue
+    nested_dir = os.path.join(BASE_DATASET_DIR, "dataset")
+    if os.path.exists(nested_dir):
+        for item in os.listdir(nested_dir):
+            shutil.move(os.path.join(nested_dir, item), os.path.join(BASE_DATASET_DIR, item))
+        os.rmdir(nested_dir)
+
+    print("✅ Extraction complete.")
 
     train_dir = os.path.join(SPLIT_BASE_DIR, "train")
     val_dir = os.path.join(SPLIT_BASE_DIR, "val")
@@ -203,6 +208,19 @@ def evaluate_model(model, test_gen):
 
     cm = confusion_matrix(y_true, y_pred)
 
+    # Save Heatmap
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=test_gen.class_indices.keys(),
+                yticklabels=test_gen.class_indices.keys())
+    plt.title('Confusion Matrix Heatmap')
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    heatmap_path = os.path.join(REPORTS_DIR, "heatmap.png")
+    plt.savefig(heatmap_path)
+    plt.close()
+    print(f"✅ Heatmap saved to: {heatmap_path}")
 
 # =========================
 # QUANTIZATION
@@ -257,8 +275,11 @@ def main():
         if os.path.exists(BASE_DATASET_DIR):
             shutil.rmtree(BASE_DATASET_DIR)
 
-        if os.path.exists(DATASET_ZIP_PATH):
-            os.remove(DATASET_ZIP_PATH)
+        # Remove all zip files
+        if os.path.exists("model_train"):
+            for f in os.listdir("model_train"):
+                if f.endswith('.zip'):
+                    os.remove(os.path.join("model_train", f))
 
 if __name__ == "__main__":
     main()
