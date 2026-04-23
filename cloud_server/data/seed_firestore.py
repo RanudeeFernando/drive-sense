@@ -25,8 +25,8 @@ def seed():
     db = get_db()
     for slot in SLOTS:
         db.collection("slots").document(slot["slot_id"]).set(slot)
-        print(f"✅ Seeded slot {slot['slot_id']} ({slot['slot_type']})")
-    print("\n🎉 Firestore seeding complete! You can now delete this file.")
+        print(f"Seeded slot {slot['slot_id']} ({slot['slot_type']})")
+    print("\nFirestore seeding complete! You can now delete this file.")
 
 
 if __name__ == "__main__":

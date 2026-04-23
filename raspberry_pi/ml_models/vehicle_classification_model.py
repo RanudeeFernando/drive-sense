@@ -39,7 +39,7 @@ class VehicleClassificationModel:
         result = classes[np.argmax(output)]
         confidence = round(output[0][np.argmax(output)] * 100, 2)
 
-        print(f"🔍 Classified as: {result} (Confidence: {confidence}%)")
+        print(f"Classified as: {result} (Confidence: {confidence}%)")
         return result
     
     

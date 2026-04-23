@@ -36,7 +36,7 @@ def download_zip(service):
 
     files = results.get('files', [])
     if not files:
-        print("❌ dataset.zip not found")
+        print("dataset.zip not found")
         return None
 
     file_id = files[0]['id']
@@ -63,7 +63,7 @@ def merge_folders():
     source_path = "Data"   
     dataset_path = "dataset"          
     if not os.path.exists(source_path):
-        print("❌ No captured_images folder found")
+        print("No captured_images folder found")
         return
 
     # Loop through ALL categories dynamically
@@ -91,7 +91,7 @@ def merge_folders():
     shutil.rmtree(source_path)
     os.makedirs(source_path, exist_ok=True)
 
-    print("✅ Raspberry Pi images merged into dataset")
+    print("Raspberry Pi images merged into dataset")
 
 # ---------------- ZIP AGAIN ----------------
 def zip_folder(folder_path, zip_name):

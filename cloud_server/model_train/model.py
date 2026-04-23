@@ -38,7 +38,7 @@ REPORTS_DIR = "cloud_server/model_train/reports"
 # DOWNLOAD DATASET
 # =========================
 def download_dataset():
-    print("⬇️ Downloading dataset from Google Drive...")
+    print("Downloading dataset from Google Drive...")
 
     folder_id = "1bV0oOqbcMOPoO0HN83WwoYvgxzxSOEke"
 
@@ -51,23 +51,23 @@ def download_dataset():
         use_cookies=False
     )
 
-    print("✅ Download complete")
+    print("Download complete")
 
 
 # =========================
 # DATA SPLITTING
 # =========================
 def prepare_dataset():
-    print("📂 Preparing dataset...")
+    print("Preparing dataset...")
 
     zip_files = [f for f in os.listdir("model_train") if f.endswith('.zip')]
     if not zip_files:
-        raise FileNotFoundError("❌ No zip files found after download.")
+        raise FileNotFoundError("No zip files found after download.")
 
     # Sort by modification time descending (latest first)
     zip_files.sort(key=lambda x: os.path.getmtime(os.path.join("model_train", x)), reverse=True)
     zip_path = os.path.join("model_train", zip_files[0])
-    print(f"📦 Using latest zip: {zip_path}")
+    print(f"Using latest zip: {zip_path}")
 
     if os.path.exists(BASE_DATASET_DIR):
         shutil.rmtree(BASE_DATASET_DIR)
@@ -82,7 +82,7 @@ def prepare_dataset():
             shutil.move(os.path.join(nested_dir, item), os.path.join(BASE_DATASET_DIR, item))
         os.rmdir(nested_dir)
 
-    print("✅ Extraction complete.")
+    print("Extraction complete.")
 
     train_dir = os.path.join(SPLIT_BASE_DIR, "train")
     val_dir = os.path.join(SPLIT_BASE_DIR, "val")
@@ -99,7 +99,7 @@ def prepare_dataset():
         cls_path = os.path.join(BASE_DATASET_DIR, cls)
 
         if not os.path.exists(cls_path):
-            raise ValueError(f"❌ Missing class folder: {cls_path}")
+            raise ValueError(f"Missing class folder: {cls_path}")
 
         images = [f for f in os.listdir(cls_path) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
 
@@ -113,7 +113,7 @@ def prepare_dataset():
             for img in imgs:
                 shutil.copy(os.path.join(cls_path, img), os.path.join(cls_folder, img))
 
-    print("✅ Dataset split complete")
+    print("Dataset split complete")
     return train_dir, val_dir, test_dir
 
 
@@ -187,7 +187,7 @@ def build_model(num_classes):
 # TRAINING
 # =========================
 def train_model(model, train_gen, val_gen):
-    print("🚀 Training model...")
+    print("Training model...")
     history = model.fit(train_gen, validation_data=val_gen, epochs=EPOCHS)
     return history
 
@@ -196,7 +196,7 @@ def train_model(model, train_gen, val_gen):
 # EVALUATION
 # =========================
 def evaluate_model(model, test_gen):
-    print("📊 Evaluating model...")
+    print("Evaluating model...")
 
     loss, acc = model.evaluate(test_gen)
     print(f"Test Accuracy: {acc*100:.2f}%")
@@ -220,13 +220,13 @@ def evaluate_model(model, test_gen):
     heatmap_path = os.path.join(REPORTS_DIR, "heatmap.png")
     plt.savefig(heatmap_path)
     plt.close()
-    print(f"✅ Heatmap saved to: {heatmap_path}")
+    print(f"Heatmap saved to: {heatmap_path}")
 
 # =========================
 # QUANTIZATION
 # =========================
 def quantize_model(model, train_gen):
-    print("⚙️ Quantizing model...")
+    print("Quantizing model...")
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -246,7 +246,7 @@ def quantize_model(model, train_gen):
     with open(TFLITE_PATH, "wb") as f:
         f.write(tflite_model)
 
-    print("✅ Quantized model saved:", TFLITE_PATH)
+    print("Quantized model saved:", TFLITE_PATH)
 
 
 # =========================
@@ -264,7 +264,7 @@ def main():
         evaluate_model(model, test_gen)
 
         model.save(MODEL_PATH)
-        print("💾 Model saved:", MODEL_PATH)
+        print("Model saved:", MODEL_PATH)
 
         quantize_model(model, train_gen)
 
