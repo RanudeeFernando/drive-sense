@@ -1,3 +1,4 @@
+
 from datetime import datetime
 import random
 
@@ -57,44 +58,48 @@ class TicketRepository:
         )
 
     def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> dict:
+        """
+        CSV first, then Firestore sync.
+        """
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         ticket_id = f"DST-{timestamp}"
         pin_code = self.generate_pin_code()
         entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        ticket = Ticket(
-            ticket_id=ticket_id,
+        print(f"DEBUG[TicketRepository]: generating ticket {ticket_id}")
+
+        # 1. local first
+        result = self.memory_store.generate_ticket(
             parking_slot=parking_slot,
             vehicle_type=vehicle_type,
-            entry_time=entry_time,
-            exit_time="",
-            duration_minutes=0,
-            price=0,
-            status="active",
+            ticket_id=ticket_id,
             pin_code=pin_code,
-            pin_status="active",
+            entry_time=entry_time,
+            is_synced=False,
         )
 
-        firestore_success = False
-
+        # 2. try Firestore sync
         try:
-            doc_ref = self.collection.document(ticket_id)
-            doc_ref.set(ticket.to_dict())
-            firestore_success = True
-        except Exception:
-            pass
+            ticket = self.memory_store.get_ticket_by_id(ticket_id)
+            if ticket is not None:
+                doc_ref = self.collection.document(ticket_id)
+                doc_ref.set(ticket.to_dict())
+                self.memory_store.mark_ticket_synced(ticket_id)
+                print(f"DEBUG[TicketRepository]: Firestore sync success for ticket {ticket_id}")
 
-        self.memory_store.upsert_ticket(ticket, is_synced=firestore_success)
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore ticket sync failed for {ticket_id}: {e}")
 
-        return {
-            "ticket_id": ticket_id,
-            "pin_code": pin_code,
-            "entry_time": entry_time,
-            "slot_id": parking_slot.get_slot_id(),
-            "vehicle_type": vehicle_type.value,
-        }
+        return result
 
     def get_ticket_by_id(self, ticket_id: str):
+        """
+        CSV first, Firestore second.
+        """
+        local_ticket = self.memory_store.get_ticket_by_id(ticket_id)
+        if local_ticket is not None:
+            return local_ticket
+
         try:
             doc = self.collection.document(ticket_id).get()
             if doc.exists:
@@ -102,10 +107,19 @@ class TicketRepository:
                 self.memory_store.upsert_ticket(ticket, is_synced=True)
                 return ticket
             return None
-        except Exception:
-            return self.memory_store.get_ticket_by_id(ticket_id)
+
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore get_ticket_by_id failed for {ticket_id}: {e}")
+            return None
 
     def get_active_ticket_by_slot_id(self, slot_id: int):
+        """
+        CSV first, Firestore second.
+        """
+        local_ticket = self.memory_store.get_active_ticket_by_slot_id(slot_id)
+        if local_ticket is not None:
+            return local_ticket
+
         try:
             docs = (
                 self.collection
@@ -115,18 +129,25 @@ class TicketRepository:
                 .stream()
             )
 
-            found_ticket = None
             for doc in docs:
-                found_ticket = self._doc_to_ticket(doc)
-                break
+                ticket = self._doc_to_ticket(doc)
+                self.memory_store.upsert_ticket(ticket, is_synced=True)
+                return ticket
 
-            self._sync_tickets_from_firestore()
-            return found_ticket
+            return None
 
-        except Exception:
-            return self.memory_store.get_active_ticket_by_slot_id(slot_id)
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore get_active_ticket_by_slot_id failed: {e}")
+            return None
 
     def get_active_ticket_by_pin(self, pin_code: str):
+        """
+        CSV first, Firestore second.
+        """
+        local_ticket = self.memory_store.get_active_ticket_by_pin(pin_code)
+        if local_ticket is not None:
+            return local_ticket
+
         try:
             docs = (
                 self.collection
@@ -136,16 +157,16 @@ class TicketRepository:
                 .stream()
             )
 
-            found_ticket = None
             for doc in docs:
-                found_ticket = self._doc_to_ticket(doc)
-                break
+                ticket = self._doc_to_ticket(doc)
+                self.memory_store.upsert_ticket(ticket, is_synced=True)
+                return ticket
 
-            self._sync_tickets_from_firestore()
-            return found_ticket
+            return None
 
-        except Exception:
-            return self.memory_store.get_active_ticket_by_pin(pin_code)
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore get_active_ticket_by_pin failed: {e}")
+            return None
 
     def update_ticket_on_exit(
         self,
@@ -154,60 +175,99 @@ class TicketRepository:
         duration_minutes: float,
         price: float,
     ) -> bool:
+        """
+        CSV first, then Firestore sync.
+        """
         exit_time_str = exit_time.strftime("%Y-%m-%d %H:%M:%S")
-        firestore_success = False
 
-        try:
-            doc_ref = self.collection.document(ticket_id)
-            doc = doc_ref.get()
-
-            if doc.exists:
-                doc_ref.update({
-                    "exit_time": exit_time_str,
-                    "duration_minutes": round(duration_minutes, 2),
-                    "price": price,
-                    "status": "closed",
-                    "pin_status": "expired",
-                })
-                firestore_success = True
-        except Exception:
-            pass
-
-        memory_success = self.memory_store.update_ticket_on_exit(
+        local_success = self.memory_store.update_ticket_on_exit(
             ticket_id=ticket_id,
             exit_time=exit_time_str,
             duration_minutes=duration_minutes,
             price=price,
-            is_synced=firestore_success,
+            is_synced=False,
         )
 
-        return firestore_success or memory_success
+        if not local_success:
+            print(f"DEBUG[TicketRepository]: local exit update failed for ticket {ticket_id}")
+            return False
+
+        print(f"DEBUG[TicketRepository]: locally updated exit for ticket {ticket_id}, trying Firestore sync")
+
+        try:
+            ticket = self.memory_store.get_ticket_by_id(ticket_id)
+            if ticket is not None:
+                doc_ref = self.collection.document(ticket_id)
+                doc_ref.set(ticket.to_dict(), merge=True)
+                self.memory_store.mark_ticket_synced(ticket_id)
+                print(f"DEBUG[TicketRepository]: Firestore exit sync success for ticket {ticket_id}")
+
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore exit sync failed for ticket {ticket_id}: {e}")
+
+        return True
 
     def get_all_tickets(self):
+        """
+        CSV first if already populated.
+        Firestore only used for bootstrap.
+        """
+        local_tickets = self.memory_store.get_all_tickets()
+        if len(local_tickets) > 0:
+            print(f"DEBUG[TicketRepository]: returning {len(local_tickets)} tickets from CSV")
+            return local_tickets
+
+        print("DEBUG[TicketRepository]: CSV empty, trying Firestore bootstrap for tickets")
         try:
             docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()
             tickets = [self._doc_to_ticket(doc) for doc in docs]
-            self.memory_store.seed_from_tickets(tickets)
-            return tickets
-        except Exception:
-            return self.memory_store.get_all_tickets()
+
+            if len(tickets) > 0:
+                self.memory_store.seed_from_tickets(tickets)
+                print(f"DEBUG[TicketRepository]: bootstrapped {len(tickets)} tickets from Firestore")
+                return tickets
+
+            print("DEBUG[TicketRepository]: Firestore returned no ticket documents")
+            return []
+
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore bootstrap failed: {e}")
+            return []
 
     def sync_unsynced_tickets_to_firestore(self) -> int:
         synced_count = 0
         unsynced_tickets = self.memory_store.get_unsynced_tickets()
 
+        if len(unsynced_tickets) > 0:
+            print(f"DEBUG[TicketRepository]: found {len(unsynced_tickets)} unsynced tickets")
+
         for ticket in unsynced_tickets:
-            doc_ref = self.collection.document(ticket.get_ticket_id())
-            doc_ref.set(ticket.to_dict(), merge=True)
-            self.memory_store.mark_ticket_synced(ticket.get_ticket_id())
-            synced_count += 1
+            try:
+                doc_ref = self.collection.document(ticket.get_ticket_id())
+                doc_ref.set(ticket.to_dict(), merge=True)
+                self.memory_store.mark_ticket_synced(ticket.get_ticket_id())
+                synced_count += 1
+                print(f"DEBUG[TicketRepository]: synced ticket {ticket.get_ticket_id()} to Firestore")
+            except Exception as e:
+                print(f"DEBUG[TicketRepository]: failed syncing ticket {ticket.get_ticket_id()}: {e}")
 
         return synced_count
 
-    def _sync_tickets_from_firestore(self) -> None:
+    def bootstrap_from_firestore(self) -> int:
+        """
+        Optional manual bootstrap helper.
+        """
         try:
-            docs = self.collection.stream()
+            docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()
             tickets = [self._doc_to_ticket(doc) for doc in docs]
-            self.memory_store.seed_from_tickets(tickets)
-        except Exception:
-            pass
+
+            if len(tickets) > 0:
+                self.memory_store.seed_from_tickets(tickets)
+                return len(tickets)
+
+            return 0
+
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: bootstrap_from_firestore failed: {e}")
+            return 0
+

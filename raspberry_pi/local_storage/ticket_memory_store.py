@@ -11,7 +11,6 @@ class TicketMemoryStore:
     def __init__(self, csv_path: Optional[str] = None):
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         local_storage_dir = os.path.join(base_dir, "local_storage")
-
         os.makedirs(local_storage_dir, exist_ok=True)
 
         self.csv_path = csv_path or os.path.join(local_storage_dir, "tickets_memory.csv")
@@ -26,19 +25,24 @@ class TicketMemoryStore:
             "status",
             "pin_code",
             "pin_status",
-            "is_synced",
+            "is_synced"
         ]
 
         self._ensure_file_exists()
+
+    @staticmethod
+    def _to_bool(value) -> bool:
+        return str(value).strip().lower() in ("true", "1", "yes")
 
     def _ensure_file_exists(self) -> None:
         if not os.path.exists(self.csv_path):
             with open(self.csv_path, "w", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
                 writer.writeheader()
+            print(f"DEBUG[TicketMemoryStore]: created {self.csv_path}")
             return
 
-        # Upgrade old CSV files that do not yet have is_synced
+        # upgrade old csv without is_synced
         with open(self.csv_path, "r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             existing_fields = reader.fieldnames or []
@@ -57,9 +61,7 @@ class TicketMemoryStore:
                 for row in rows:
                     writer.writerow(row)
 
-    @staticmethod
-    def _to_bool(value) -> bool:
-        return str(value).strip().lower() in ("true", "1", "yes")
+            print("DEBUG[TicketMemoryStore]: upgraded CSV with is_synced column")
 
     def _build_slot(self, slot_id: int, vehicle_type: VehicleType) -> ParkingSlot:
         return ParkingSlot(
@@ -67,7 +69,7 @@ class TicketMemoryStore:
             slot_type=vehicle_type,
             slot_length=0.0,
             slot_width=0.0,
-            is_occupied=False,
+            is_occupied=False
         )
 
     def _row_to_ticket(self, row: dict) -> Ticket:
@@ -84,10 +86,10 @@ class TicketMemoryStore:
             price=float(row.get("price", 0) or 0),
             status=row.get("status", "active"),
             pin_code=row.get("pin_code", ""),
-            pin_status=row.get("pin_status", "active"),
+            pin_status=row.get("pin_status", "active")
         )
 
-    def _ticket_to_row(self, ticket: Ticket, is_synced: bool = True) -> dict:
+    def _ticket_to_row(self, ticket: Ticket, is_synced: bool = False) -> dict:
         return {
             "ticket_id": ticket.get_ticket_id(),
             "slot_id": str(ticket.get_slot_id()),
@@ -99,24 +101,13 @@ class TicketMemoryStore:
             "status": ticket.get_status(),
             "pin_code": ticket.get_pin_code(),
             "pin_status": ticket.get_pin_status(),
-            "is_synced": str(is_synced),
+            "is_synced": str(is_synced)
         }
-
-    def get_all_tickets(self) -> List[Ticket]:
-        self._ensure_file_exists()
-
-        tickets = []
-        with open(self.csv_path, "r", newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                tickets.append(self._row_to_ticket(row))
-
-        return tickets
 
     def get_all_rows(self) -> List[dict]:
         self._ensure_file_exists()
-
         rows = []
+
         with open(self.csv_path, "r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
@@ -131,7 +122,7 @@ class TicketMemoryStore:
 
         normalized_rows = []
         for row in rows:
-            normalized = {
+            normalized_rows.append({
                 "ticket_id": str(row["ticket_id"]),
                 "slot_id": str(row["slot_id"]),
                 "vehicle_type": str(row["vehicle_type"]),
@@ -142,9 +133,8 @@ class TicketMemoryStore:
                 "status": str(row.get("status", "active")),
                 "pin_code": str(row.get("pin_code", "")),
                 "pin_status": str(row.get("pin_status", "active")),
-                "is_synced": str(row.get("is_synced", True)),
-            }
-            normalized_rows.append(normalized)
+                "is_synced": str(row.get("is_synced", False))
+            })
 
         with open(self.csv_path, "w", newline="") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
@@ -152,16 +142,21 @@ class TicketMemoryStore:
             for row in normalized_rows:
                 writer.writerow(row)
 
-    def overwrite_all_tickets(self, tickets: List[Ticket], is_synced: bool = True) -> None:
+        print(f"DEBUG[TicketMemoryStore]: wrote {len(normalized_rows)} ticket rows")
+
+    def get_all_tickets(self) -> List[Ticket]:
+        return [self._row_to_ticket(row) for row in self.get_all_rows()]
+
+    def overwrite_all_tickets(self, tickets: List[Ticket], is_synced: bool = False) -> None:
         rows = [self._ticket_to_row(ticket, is_synced=is_synced) for ticket in tickets]
         self.overwrite_all_rows(rows)
 
-    def upsert_ticket(self, ticket: Ticket, is_synced: bool = True) -> None:
+    def upsert_ticket(self, ticket: Ticket, is_synced: bool = False) -> None:
         rows = self.get_all_rows()
         updated = False
 
-        for index, existing_row in enumerate(rows):
-            if existing_row["ticket_id"] == ticket.get_ticket_id():
+        for index, row in enumerate(rows):
+            if row["ticket_id"] == ticket.get_ticket_id():
                 rows[index] = self._ticket_to_row(ticket, is_synced=is_synced)
                 updated = True
                 break
@@ -170,24 +165,22 @@ class TicketMemoryStore:
             rows.append(self._ticket_to_row(ticket, is_synced=is_synced))
 
         self.overwrite_all_rows(rows)
+        print(f"DEBUG[TicketMemoryStore]: upserted ticket {ticket.get_ticket_id()} synced={is_synced}")
 
     def get_ticket_by_id(self, ticket_id: str):
-        tickets = self.get_all_tickets()
-        for ticket in tickets:
+        for ticket in self.get_all_tickets():
             if ticket.get_ticket_id() == ticket_id:
                 return ticket
         return None
 
     def get_active_ticket_by_slot_id(self, slot_id: int):
-        tickets = self.get_all_tickets()
-        for ticket in tickets:
+        for ticket in self.get_all_tickets():
             if ticket.get_slot_id() == slot_id and ticket.get_status() == "active":
                 return ticket
         return None
 
     def get_active_ticket_by_pin(self, pin_code: str):
-        tickets = self.get_all_tickets()
-        for ticket in tickets:
+        for ticket in self.get_all_tickets():
             if ticket.get_pin_code() == pin_code and ticket.get_status() == "active":
                 return ticket
         return None
@@ -199,7 +192,7 @@ class TicketMemoryStore:
         ticket_id: str,
         pin_code: str,
         entry_time: str,
-        is_synced: bool = False,
+        is_synced: bool = False
     ) -> dict:
         ticket = Ticket(
             ticket_id=ticket_id,
@@ -211,7 +204,7 @@ class TicketMemoryStore:
             price=0,
             status="active",
             pin_code=pin_code,
-            pin_status="active",
+            pin_status="active"
         )
 
         self.upsert_ticket(ticket, is_synced=is_synced)
@@ -221,7 +214,7 @@ class TicketMemoryStore:
             "pin_code": pin_code,
             "entry_time": entry_time,
             "slot_id": parking_slot.get_slot_id(),
-            "vehicle_type": vehicle_type.value,
+            "vehicle_type": vehicle_type.value
         }
 
     def update_ticket_on_exit(
@@ -230,7 +223,7 @@ class TicketMemoryStore:
         exit_time: str,
         duration_minutes: float,
         price: float,
-        is_synced: bool = False,
+        is_synced: bool = False
     ) -> bool:
         rows = self.get_all_rows()
 
@@ -243,21 +236,24 @@ class TicketMemoryStore:
                 row["pin_status"] = "expired"
                 row["is_synced"] = str(is_synced)
                 self.overwrite_all_rows(rows)
+                print(f"DEBUG[TicketMemoryStore]: updated ticket exit {ticket_id} synced={is_synced}")
                 return True
 
         return False
 
     def seed_from_tickets(self, tickets: List[Ticket]) -> None:
+        if not tickets:
+            print("DEBUG[TicketMemoryStore]: seed skipped because ticket list is empty")
+            return
+
         self.overwrite_all_tickets(tickets, is_synced=True)
+        print(f"DEBUG[TicketMemoryStore]: seeded {len(tickets)} tickets from Firestore")
 
     def get_unsynced_tickets(self) -> List[Ticket]:
-        rows = self.get_all_rows()
         unsynced = []
-
-        for row in rows:
-            if not self._to_bool(row.get("is_synced", True)):
+        for row in self.get_all_rows():
+            if not self._to_bool(row.get("is_synced", False)):
                 unsynced.append(self._row_to_ticket(row))
-
         return unsynced
 
     def mark_ticket_synced(self, ticket_id: str) -> None:
@@ -269,3 +265,5 @@ class TicketMemoryStore:
                 break
 
         self.overwrite_all_rows(rows)
+        print(f"DEBUG[TicketMemoryStore]: marked ticket {ticket_id} as synced")
+

@@ -10,7 +10,6 @@ class SlotMemoryStore:
     def __init__(self, csv_path: Optional[str] = None):
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         local_storage_dir = os.path.join(base_dir, "local_storage")
-
         os.makedirs(local_storage_dir, exist_ok=True)
 
         self.csv_path = csv_path or os.path.join(local_storage_dir, "slots_memory.csv")
@@ -20,19 +19,24 @@ class SlotMemoryStore:
             "slot_length",
             "slot_width",
             "is_occupied",
-            "is_synced",
+            "is_synced"
         ]
 
         self._ensure_file_exists()
+
+    @staticmethod
+    def _to_bool(value) -> bool:
+        return str(value).strip().lower() in ("true", "1", "yes")
 
     def _ensure_file_exists(self) -> None:
         if not os.path.exists(self.csv_path):
             with open(self.csv_path, "w", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
                 writer.writeheader()
+            print(f"DEBUG[SlotMemoryStore]: created {self.csv_path}")
             return
 
-        # Upgrade old CSV files that do not yet have is_synced
+        # upgrade old csv without is_synced
         with open(self.csv_path, "r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             existing_fields = reader.fieldnames or []
@@ -51,9 +55,7 @@ class SlotMemoryStore:
                 for row in rows:
                     writer.writerow(row)
 
-    @staticmethod
-    def _to_bool(value) -> bool:
-        return str(value).strip().lower() in ("true", "1", "yes")
+            print("DEBUG[SlotMemoryStore]: upgraded CSV with is_synced column")
 
     def _row_to_slot(self, row: dict) -> ParkingSlot:
         return ParkingSlot(
@@ -61,34 +63,23 @@ class SlotMemoryStore:
             slot_type=VehicleType(row["slot_type"]),
             slot_length=float(row["slot_length"]),
             slot_width=float(row["slot_width"]),
-            is_occupied=self._to_bool(row["is_occupied"]),
+            is_occupied=self._to_bool(row["is_occupied"])
         )
 
-    def _slot_to_row(self, slot: ParkingSlot, is_synced: bool = True) -> dict:
+    def _slot_to_row(self, slot: ParkingSlot, is_synced: bool = False) -> dict:
         return {
             "slot_id": str(slot.get_slot_id()),
             "slot_type": slot.get_slot_type().value,
             "slot_length": str(slot.get_slot_length()),
             "slot_width": str(slot.get_slot_width()),
             "is_occupied": str(slot.get_slot_status()),
-            "is_synced": str(is_synced),
+            "is_synced": str(is_synced)
         }
-
-    def get_all_slots(self) -> List[ParkingSlot]:
-        self._ensure_file_exists()
-
-        slots = []
-        with open(self.csv_path, "r", newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                slots.append(self._row_to_slot(row))
-
-        return slots
 
     def get_all_rows(self) -> List[dict]:
         self._ensure_file_exists()
-
         rows = []
+
         with open(self.csv_path, "r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
@@ -103,15 +94,14 @@ class SlotMemoryStore:
 
         normalized_rows = []
         for row in rows:
-            normalized = {
+            normalized_rows.append({
                 "slot_id": str(row["slot_id"]),
                 "slot_type": str(row["slot_type"]),
                 "slot_length": str(row["slot_length"]),
                 "slot_width": str(row["slot_width"]),
                 "is_occupied": str(row["is_occupied"]),
-                "is_synced": str(row.get("is_synced", True)),
-            }
-            normalized_rows.append(normalized)
+                "is_synced": str(row.get("is_synced", False))
+            })
 
         with open(self.csv_path, "w", newline="") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
@@ -119,28 +109,29 @@ class SlotMemoryStore:
             for row in normalized_rows:
                 writer.writerow(row)
 
-    def overwrite_all_slots(self, slots: List[ParkingSlot], is_synced: bool = True) -> None:
+        print(f"DEBUG[SlotMemoryStore]: wrote {len(normalized_rows)} slot rows")
+
+    def get_all_slots(self) -> List[ParkingSlot]:
+        return [self._row_to_slot(row) for row in self.get_all_rows()]
+
+    def overwrite_all_slots(self, slots: List[ParkingSlot], is_synced: bool = False) -> None:
         rows = [self._slot_to_row(slot, is_synced=is_synced) for slot in slots]
         self.overwrite_all_rows(rows)
 
     def get_slot_by_id(self, slot_id: int) -> Optional[ParkingSlot]:
-        rows = self.get_all_rows()
-        for row in rows:
+        for row in self.get_all_rows():
             if int(row["slot_id"]) == slot_id:
                 return self._row_to_slot(row)
         return None
 
     def find_available_slot(self, vehicle_type: VehicleType) -> Optional[ParkingSlot]:
-        rows = self.get_all_rows()
-
-        for row in rows:
+        for row in self.get_all_rows():
             slot = self._row_to_slot(row)
             if slot.get_slot_type() == vehicle_type and not slot.get_slot_status():
                 return slot
-
         return None
 
-    def upsert_slot(self, slot: ParkingSlot, is_synced: bool = True) -> None:
+    def upsert_slot(self, slot: ParkingSlot, is_synced: bool = False) -> None:
         rows = self.get_all_rows()
         updated = False
 
@@ -154,6 +145,7 @@ class SlotMemoryStore:
             rows.append(self._slot_to_row(slot, is_synced=is_synced))
 
         self.overwrite_all_rows(rows)
+        print(f"DEBUG[SlotMemoryStore]: upserted slot {slot.get_slot_id()} synced={is_synced}")
 
     def reserve_slot(self, slot_id: int, is_synced: bool = False) -> bool:
         rows = self.get_all_rows()
@@ -166,6 +158,7 @@ class SlotMemoryStore:
                 row["is_occupied"] = "True"
                 row["is_synced"] = str(is_synced)
                 self.overwrite_all_rows(rows)
+                print(f"DEBUG[SlotMemoryStore]: reserved slot {slot_id} synced={is_synced}")
                 return True
 
         return False
@@ -181,21 +174,24 @@ class SlotMemoryStore:
                 row["is_occupied"] = "False"
                 row["is_synced"] = str(is_synced)
                 self.overwrite_all_rows(rows)
+                print(f"DEBUG[SlotMemoryStore]: released slot {slot_id} synced={is_synced}")
                 return True
 
         return False
 
     def seed_from_slots(self, slots: List[ParkingSlot]) -> None:
+        if not slots:
+            print("DEBUG[SlotMemoryStore]: seed skipped because slot list is empty")
+            return
+
         self.overwrite_all_slots(slots, is_synced=True)
+        print(f"DEBUG[SlotMemoryStore]: seeded {len(slots)} slots from Firestore")
 
     def get_unsynced_slots(self) -> List[ParkingSlot]:
-        rows = self.get_all_rows()
         unsynced = []
-
-        for row in rows:
-            if not self._to_bool(row.get("is_synced", True)):
+        for row in self.get_all_rows():
+            if not self._to_bool(row.get("is_synced", False)):
                 unsynced.append(self._row_to_slot(row))
-
         return unsynced
 
     def mark_slot_synced(self, slot_id: int) -> None:
@@ -207,3 +203,5 @@ class SlotMemoryStore:
                 break
 
         self.overwrite_all_rows(rows)
+        print(f"DEBUG[SlotMemoryStore]: marked slot {slot_id} as synced")
+

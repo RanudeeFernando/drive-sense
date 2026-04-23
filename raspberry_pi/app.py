@@ -45,7 +45,7 @@ RESET_REQUIRED = 2
 
 # ---------------- STATUS PUSH HELPER ----------------
 def push_driver_status(status: str, message: str = "", ticket: dict = None):
-    """Push a transient UI status to the cloud server state machine."""
+    """Push a transient UI status to the local Raspberry Pi API."""
     try:
         payload = {"status": status, "message": message, "ticket": ticket}
         requests.put(
@@ -75,7 +75,6 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
                 entry_seen = True
                 log_both(entry_logger, f"Vehicle detected at entry: {distance} cm")
 
-                # ── STATE: processing ──────────────────────────────────────
                 push_driver_status("processing", "Recognizing vehicle, please wait...")
 
                 img_path = camera.capture_image()
@@ -89,7 +88,6 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
                         f"Camera capture did not generate file: {img_path}",
                         level="warning"
                     )
-                    # ── STATE: error (camera failure) ──────────────────────
                     push_driver_status("error", "Camera error. Please contact staff.")
                     time.sleep(2)
                     continue
@@ -108,7 +106,6 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
                         f"Invalid vehicle type predicted by model: {vehicle_type_raw}",
                         level="error"
                     )
-                    # ── STATE: error (invalid vehicle) ────────────────────
                     push_driver_status("error", "Vehicle recognition failed. Please try again.")
                     time.sleep(2)
                     continue
@@ -119,7 +116,6 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
                     if result.get("status") == "success":
                         log_both(entry_logger, f"Local ticket allocation success: {result}")
-                        # ── STATE: success ─────────────────────────────────
                         push_driver_status("success", "", result)
                     else:
                         log_both(
@@ -128,12 +124,10 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
                             level="warning"
                         )
                         error_detail = result.get("message", "Ticket allocation failed.")
-                        # ── STATE: error (local rejection) ─────────────────
                         push_driver_status("error", error_detail)
 
                 except Exception as e:
                     log_both(entry_logger, f"Failed local ticket allocation: {e}", level="error")
-                    # ── STATE: error (system failure) ─────────────────────
                     push_driver_status("error", "System error. Please try again.")
 
             elif not in_range and entry_seen:
@@ -144,7 +138,6 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
         except Exception as e:
             log_both(entry_logger, f"Unexpected error in entry thread: {e}", level="error")
-            # ── STATE: error (unexpected) ─────────────────────
             push_driver_status("error", "Unexpected error. Please try again.")
             time.sleep(2)
 
@@ -153,20 +146,29 @@ def send_image_to_cloud(image_path, vehicle_type):
     vehicle_type = vehicle_type.lower()
 
     if not os.path.exists(image_path):
-        print(f"Image {image_path} not found")
+        log_both(entry_logger, f"Image not found for upload: {image_path}", level="warning")
         return
 
-    files = {"file": open(image_path, "rb")}
+    try:
+        with open(image_path, "rb") as image_file:
+            files = {"file": image_file}
+            response = requests.post(
+                f"{CLOUD_API_URL}/upload-image/{vehicle_type}",
+                files=files,
+                timeout=10
+            )
 
-    response = requests.post(
-        f"{CLOUD_API_URL}/upload-image/{vehicle_type}",
-        files=files
-    )
+        if response.status_code == 200:
+            log_both(entry_logger, f"Uploaded image to cloud: {response.json()}")
+        else:
+            log_both(
+                entry_logger,
+                f"Failed to upload image: {response.status_code} - {response.text}",
+                level="warning"
+            )
 
-    if response.status_code == 200:
-        print(f"Uploaded image to cloud: {response.json()}")
-    else:
-        print(f"Failed to upload image: {response.status_code} - {response.text}")
+    except Exception as e:
+        log_both(entry_logger, f"Image upload failed: {e}", level="warning")
 
 
 # ---------------- EXIT PROCESS ----------------
@@ -309,8 +311,9 @@ def lighting_process(ldr_sensor):
 
 def preload_local_memory(slot_repository, ticket_repository):
     """
-    Best-effort preload so CSV fallback memory is seeded from Firestore at startup.
-    If Firestore is unavailable, repositories will simply fall back internally.
+    CSV-first architecture:
+    - If CSV already has data, repositories will return CSV
+    - If CSV is empty, repositories will attempt one-time Firestore bootstrap
     """
     try:
         slots = slot_repository.get_all_slots()
@@ -327,8 +330,7 @@ def preload_local_memory(slot_repository, ticket_repository):
 
 def recovery_sync_process(slot_repository, ticket_repository):
     """
-    Periodically tries to push locally unsynced CSV changes back to Firestore.
-    If Firestore is still unavailable, it simply retries later.
+    Periodically push locally unsynced CSV changes back to Firestore.
     """
     while True:
         try:
@@ -359,17 +361,27 @@ def main():
 
     slot_repository = SlotRepository()
     ticket_repository = TicketRepository()
-    green_light=LEDLight(pin=17)
-    red_light=LEDLight(pin=27)
 
-    # Initialize lights to default state (red on, green off)
+    green_light = LEDLight(pin=17)
+    red_light = LEDLight(pin=27)
+
+    # default light state
     red_light.turn_on()
     green_light.turn_off()
 
     preload_local_memory(slot_repository, ticket_repository)
 
     slot_manager = SlotManagerService(slot_repository)
-    ticket_manager = TicketManagerService(ticket_repository, slot_manager, green_light,red_light)
+
+    # IMPORTANT:
+    # This assumes your current TicketManagerService accepts:
+    # (ticket_repository, slot_manager, green_light, red_light)
+    ticket_manager = TicketManagerService(
+        ticket_repository,
+        slot_manager,
+        green_light,
+        red_light
+    )
 
     log_both(main_logger, "Raspberry Pi Edge Node Started")
 
