@@ -301,6 +301,7 @@ def lighting_process(ldr_sensor):
 
             else:
                 ldr_sensor.control_led(False)
+                last_light_state = False
 
             time.sleep(LIGHT_POLL_INTERVAL)
 
