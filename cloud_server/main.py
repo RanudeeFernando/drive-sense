@@ -7,6 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from cloud_server.cloud_api import router
+from cloud_server.cloud_utils.config import START_SYNC
 
 app = FastAPI(title="Smart Parking Cloud API")
 
@@ -52,10 +53,12 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def start_scheduler():
-    run_model_training()
-    #scheduler.add_job(run_model_training, 'interval', days=30)
+    if START_SYNC:
+        run_model_training()
+    scheduler.add_job(run_model_training, 'interval', days=30)
     scheduler.start()
-    print("Scheduler started. Model training scheduled to run every 30 days.")
+    print(f"Scheduler started. Model training scheduled to run every 30 days. Startup training: {START_SYNC}")
+
 
 @app.on_event("shutdown")
 def stop_scheduler():
@@ -64,5 +67,4 @@ def stop_scheduler():
 
 if __name__ == "__main__":
     import uvicorn
-    # Make sure to run this using `python cloud_server/main.py`
     uvicorn.run("cloud_server.main:app", host="127.0.0.1", port=8000, reload=True)
