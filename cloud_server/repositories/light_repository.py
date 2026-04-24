@@ -1,5 +1,5 @@
 # cloud_server/repositories/light_repository.py
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from cloud_server.cloud_db.firestore_client import get_db
 
 class LightRepository:
@@ -8,10 +8,12 @@ class LightRepository:
         self.collection = self.db.collection("light_logs")
 
     def log_event(self, light_on: bool):
-        """Log a light on/off event with a timestamp."""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        event_id = f"LT-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}"
-        
+        """Log a light on/off event with a timestamp in Sri Lankan time (UTC+5:30)."""
+        sl_tz = timezone(timedelta(hours=5, minutes=30))
+        now = datetime.now(sl_tz)
+        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+        event_id = f"LT-{now.strftime('%Y%m%d-%H%M%S-%f')}"
+
         doc_ref = self.collection.document(event_id)
         doc_ref.set({
             "timestamp": timestamp,
