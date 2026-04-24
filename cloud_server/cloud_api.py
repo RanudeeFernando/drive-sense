@@ -2,34 +2,32 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 import shutil
 from pydantic import BaseModel
 
-# from cloud_server.services.slot_manager_service import SlotManagerService
-# from cloud_server.services.ticket_manager_service import TicketManagerService
+
 from cloud_server.services.light_manager_service import LightManagerService
 
 from cloud_server.repositories.slot_repository import SlotRepository
 from cloud_server.repositories.ticket_repository import TicketRepository
 from cloud_server.repositories.light_repository import LightRepository
 from cloud_server.services.admin_service import AdminService
-# from cloud_server.data_models.vehicle_type import VehicleType
+
 import os
 from datetime import datetime   
 
 
 router = APIRouter()
 
-# Initialize repositories
+
 slot_repository = SlotRepository()
 ticket_repository = TicketRepository()
 
 
-# Keep light separately for now
+
 light_manager_service = LightManagerService()
 
-# Initialize admin service
+
 admin_service = AdminService(light_manager_service=light_manager_service)
 
 
-# Pydantic schemas for request bodies
 class AdminLoginRequest(BaseModel):
     username: str
     password: str
@@ -43,11 +41,13 @@ class LDRControlRequest(BaseModel):
 
 @router.post("/lighting")
 def control_light(req: LightRequest):
+    """Endpoint to receive light status updates from the Raspberry Pi"""
     return light_manager_service.process_light(req.light_on)
 
 
 @router.post("/login")
 def admin_login(req: AdminLoginRequest):
+    """Endpoint for admin login. Validates credentials and returns success or failure"""
     result = admin_service.login(req.username, req.password)
     if not result["success"]:
         raise HTTPException(status_code=401, detail=result["message"])
@@ -56,6 +56,7 @@ def admin_login(req: AdminLoginRequest):
 
 @router.get("/slots_availability")
 def get_slot_availability():
+    """Endpoint to get the current availability status of all parking slots"""
     slots = slot_repository.get_all_slots()
     return [
         {"slot_id": slot.get_slot_id(), "is_occupied": slot.get_slot_status()}
@@ -65,6 +66,7 @@ def get_slot_availability():
 
 @router.get("/parking_logs")
 def get_parking_logs():
+    """Endpoint to get all parking tickets/logs, ordered by entry time descending"""
     tickets = ticket_repository.get_all_tickets()
     return [
         {
@@ -82,17 +84,19 @@ def get_parking_logs():
 
 @router.post("/ldr-control")
 def set_ldr_control(req: LDRControlRequest):
+    """Endpoint to control the LDR status"""
     return admin_service.set_ldr_status(req.enabled)
 
 
 @router.get("/ldr-status")
 def get_ldr_status():
+    """Endpoint to get the current LDR status"""
     return {"enabled": admin_service.get_ldr_status()}
 
 
 @router.get("/light-logs")
 def get_light_logs():
-    
+    """Endpoint to retrieve all light on/off logs"""
     repo = LightRepository()
     return repo.get_all_logs()
 
@@ -106,6 +110,7 @@ for cls in CLASSES:
 
 @router.post("/upload-image/{vehicle_type}")
 async def upload_image(vehicle_type: str, file: UploadFile = File(...)):
+    """Endpoint to upload an image for a specific vehicle type. Saves the file in the corresponding class folder with a timestamped filename."""
     if vehicle_type.lower() not in CLASSES:
         return {"status": "error", "message": f"Invalid vehicle type: {vehicle_type}"}
 

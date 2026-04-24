@@ -1,4 +1,4 @@
-# cloud_server/repositories/settings_repository.py
+
 from cloud_server.cloud_db.firestore_client import get_db
 
 class SettingsRepository:

@@ -1,4 +1,4 @@
-# cloud_server/repositories/admin_repository.py
+
 from cloud_server.cloud_db.firestore_client import get_db
 from cloud_server.data_models.admin import Admin
 

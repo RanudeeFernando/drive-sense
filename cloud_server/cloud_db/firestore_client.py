@@ -9,13 +9,13 @@ def get_db():
     """Returns a singleton Firestore client pointing to drive-sense-db."""
     global _db
     if _db is None:
-        if not firebase_admin._apps:
+        if not firebase_admin._apps: 
             cred_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                "credentials",
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
+                "credentials",      
                 "serviceAccountKey.json"
-            )
+            ) # Adjust the path as needed
             cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
-        _db = firestore.client(database_id="drive-sense-db")
+            firebase_admin.initialize_app(cred) 
+        _db = firestore.client(database_id="drive-sense-db") # Initialize the Firestore client with the specified database ID
     return _db

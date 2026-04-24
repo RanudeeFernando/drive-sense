@@ -1,4 +1,4 @@
-# cloud_server/services/admin_service.py
+
 from cloud_server.repositories.admin_repository import AdminRepository
 from cloud_server.repositories.settings_repository import SettingsRepository
 
@@ -21,7 +21,7 @@ class AdminService:
         """Set the LDR enabled status in Firestore and update the lighting system accordingly."""
         self.settings_repository.set_ldr_enabled(enabled)
         
-        # If disabling, ensure light is also turned off manually
+        
         if not enabled:
             self.light_manager_service.turn_off()
             

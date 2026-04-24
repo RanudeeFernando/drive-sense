@@ -18,9 +18,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# =========================
-# CONFIG
-# =========================
+
 DATASET_ZIP_PATH = "model_train/dataset.zip"
 BASE_DATASET_DIR = "cloud_server/model_train/dataset"
 SPLIT_BASE_DIR = "cloud_server/model_train/split_dataset"
@@ -34,17 +32,19 @@ MODEL_PATH = "cloud_server/model_train/vehicle_model.h5"
 TFLITE_PATH = "cloud_server/model_train/vehicle_model_int8.tflite"
 REPORTS_DIR = "cloud_server/model_train/reports"
 
-# =========================
-# DOWNLOAD DATASET
-# =========================
+
 def download_dataset():
+    """
+    Downloads the training dataset from Google Drive into the
+    "model_train" folder and prints progress messages.
+    """
     print("Downloading dataset from Google Drive...")
 
     folder_id = "1bV0oOqbcMOPoO0HN83WwoYvgxzxSOEke"
 
     os.makedirs("model_train", exist_ok=True)
 
-    gdown.download_folder(
+    gdown.download_folder(  # download the latest version of the dataset folder
         id=folder_id,
         output="model_train",
         quiet=False,
@@ -54,17 +54,19 @@ def download_dataset():
     print("Download complete")
 
 
-# =========================
-# DATA SPLITTING
-# =========================
+
 def prepare_dataset():
+    """
+    Extracts the latest dataset zip, organizes files, and splits
+    the data into train, validation, and test folders.
+    """
     print("Preparing dataset...")
 
     zip_files = [f for f in os.listdir("model_train") if f.endswith('.zip')]
     if not zip_files:
         raise FileNotFoundError("No zip files found after download.")
 
-    # Sort by modification time descending (latest first)
+    # Sort zip files by modification time to get the latest one
     zip_files.sort(key=lambda x: os.path.getmtime(os.path.join("model_train", x)), reverse=True)
     zip_path = os.path.join("model_train", zip_files[0])
     print(f"Using latest zip: {zip_path}")
@@ -75,7 +77,7 @@ def prepare_dataset():
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         zip_ref.extractall(BASE_DATASET_DIR)
         
-    # Fix nested dataset issue
+    # Move files from nested "dataset" folder if it exists
     nested_dir = os.path.join(BASE_DATASET_DIR, "dataset")
     if os.path.exists(nested_dir):
         for item in os.listdir(nested_dir):
@@ -106,6 +108,7 @@ def prepare_dataset():
         train_val, test = train_test_split(images, test_size=0.2, random_state=42)
         train, val = train_test_split(train_val, test_size=0.2, random_state=42)
 
+        # Create class subfolders in train, val, and test directories and copy images
         for folder, imgs in zip([train_dir, val_dir, test_dir], [train, val, test]):
             cls_folder = os.path.join(folder, cls)
             os.makedirs(cls_folder, exist_ok=True)
@@ -117,11 +120,13 @@ def prepare_dataset():
     return train_dir, val_dir, test_dir
 
 
-# =========================
-# DATA GENERATORS
-# =========================
+
 def create_generators(train_dir, val_dir, test_dir):
-    train_datagen = ImageDataGenerator(
+    """    
+    Creates and returns training, validation,and test data generators    
+    with preprocessing and augmentation applied to training data.    
+    """
+    train_datagen = ImageDataGenerator( # Apply data augmentation only for training data
         preprocessing_function=preprocess_input,
         rotation_range=30,
         zoom_range=0.25,
@@ -150,10 +155,11 @@ def create_generators(train_dir, val_dir, test_dir):
     return train_gen, val_gen, test_gen
 
 
-# =========================
-# MODEL BUILDING
-# =========================
+
 def build_model(num_classes):
+    """Builds and compiles a MobileNetV2-based model with custom top layers,
+    and returns the compiled model
+    """
     base_model = MobileNetV2(
         input_shape=(224, 224, 3),
         include_top=False,
@@ -183,18 +189,14 @@ def build_model(num_classes):
     return model
 
 
-# =========================
-# TRAINING
-# =========================
+
 def train_model(model, train_gen, val_gen):
     print("Training model...")
     history = model.fit(train_gen, validation_data=val_gen, epochs=EPOCHS)
     return history
 
 
-# =========================
-# EVALUATION
-# =========================
+
 def evaluate_model(model, test_gen):
     print("Evaluating model...")
 
@@ -208,7 +210,7 @@ def evaluate_model(model, test_gen):
 
     cm = confusion_matrix(y_true, y_pred)
 
-    # Save Heatmap
+    
     os.makedirs(REPORTS_DIR, exist_ok=True)
     plt.figure(figsize=(10, 8))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
@@ -222,14 +224,17 @@ def evaluate_model(model, test_gen):
     plt.close()
     print(f"Heatmap saved to: {heatmap_path}")
 
-# =========================
-# QUANTIZATION
-# =========================
+
 def quantize_model(model, train_gen):
+    """    
+    Converts the trained Keras model into a quantized TFLite model    
+    using a representative dataset and saves it to disk.    
+    """
     print("Quantizing model...")
 
-    converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    # Create a TFLite converter from the Keras model
+    converter = tf.lite.TFLiteConverter.from_keras_model(model) 
+    converter.optimizations = [tf.lite.Optimize.DEFAULT] 
 
     def representative_data_gen():
         for _ in range(100):
@@ -249,9 +254,7 @@ def quantize_model(model, train_gen):
     print("Quantized model saved:", TFLITE_PATH)
 
 
-# =========================
-# MAIN PIPELINE
-# =========================
+
 def main():
     try:
         download_dataset()
@@ -275,7 +278,7 @@ def main():
         if os.path.exists(BASE_DATASET_DIR):
             shutil.rmtree(BASE_DATASET_DIR)
 
-        # Remove all zip files
+        # Clean up zip files in model_train folder
         if os.path.exists("model_train"):
             for f in os.listdir("model_train"):
                 if f.endswith('.zip'):

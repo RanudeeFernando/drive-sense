@@ -1,11 +1,4 @@
-"""
-seed_admins.py — Run ONCE to populate the admins collection in Firestore.
 
-Usage:
-    python -m cloud_server.data.seed_admins
-
-After running successfully, you can keep this file for adding new admins later.
-"""
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -18,6 +11,10 @@ ADMINS = [
 
 
 def seed():
+    """
+    Seed the "admins" collection with predefined admin users.
+    Uses usernames as document IDs and prints progress messages.
+    """
     db = get_db()
     for admin in ADMINS:
         db.collection("admins").document(admin["username"]).set(admin)

@@ -7,9 +7,10 @@ class LightManagerService:
         self.light_repository = LightRepository()
 
     def process_light(self, light_on: bool):
+        """Process light status received from the Raspberry Pi, log changes, and return the current status"""
         print(f"Light status received from PI: {light_on}")
 
-        # Update internal state (optional but useful)
+
         if light_on != self.light_on:
             self.light_on = light_on
             self.light_repository.log_event(self.light_on) # Log change

@@ -11,8 +11,14 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 FOLDER_ID = "1bV0oOqbcMOPoO0HN83WwoYvgxzxSOEke"
 ZIP_NAME = "dataset.zip"
 
-# ---------------- AUTH ----------------
+
 def authenticate():
+    """
+    Handles Google Drive authentication and returns a Drive service object.
+
+    Uses saved credentials if available, otherwise runs a login flow
+    and stores the token locally.
+    """
     creds = None
 
     if os.path.exists('credentials.json'):
@@ -27,8 +33,13 @@ def authenticate():
 
     return build('drive', 'v3', credentials=creds)
 
-# ---------------- DOWNLOAD ZIP ----------------
+
 def download_zip(service):
+    """
+    Downloads the dataset ZIP file from Google Drive using the Drive API.
+
+    Searches for the file in the given folder and downloads it locally.
+    """
     results = service.files().list(
         q=f"name='{ZIP_NAME}' and '{FOLDER_ID}' in parents",
         fields="files(id, name)"
@@ -52,26 +63,28 @@ def download_zip(service):
     print("Downloaded dataset.zip")
     return ZIP_NAME
 
-# ---------------- UNZIP ----------------
+
 def unzip_file(zip_path, extract_to="dataset"):
+    """Unzips the specified ZIP file to the given directory."""
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         zip_ref.extractall(extract_to)
     print("Unzipped")
 
-# ---------------- MERGE ----------------
+
 def merge_folders():
+    """Merges images from the Raspberry Pi captured_images folder into the main dataset folder,"""
     source_path = "Data"   
     dataset_path = "dataset"          
     if not os.path.exists(source_path):
         print("No captured_images folder found")
         return
 
-    # Loop through ALL categories dynamically
+    
     for category in os.listdir(source_path):
         src = os.path.join(source_path, category)
         dst = os.path.join(dataset_path, category)
 
-        # Skip if not a folder
+        
         if not os.path.isdir(src):
             continue
 
@@ -81,7 +94,7 @@ def merge_folders():
             src_file = os.path.join(src, file)
             dst_file = os.path.join(dst, file)
 
-            # Avoid overwriting existing files
+           
             if os.path.exists(dst_file):
                 base, ext = os.path.splitext(file)
                 new_name = f"{base}_new{ext}"
@@ -93,13 +106,15 @@ def merge_folders():
 
     print("Raspberry Pi images merged into dataset")
 
-# ---------------- ZIP AGAIN ----------------
+
 def zip_folder(folder_path, zip_name):
+    """Zips the specified folder into a ZIP file with the given name."""
     shutil.make_archive(zip_name.replace(".zip", ""), 'zip', folder_path)
     print("Zipped updated dataset")
 
-# ---------------- UPLOAD ----------------
+
 def upload_zip(service, zip_name):
+    """Uploads the specified ZIP file to Google Drive in the designated folder."""
     file_metadata = {
         'name': "dataset_updated.zip",
         'parents': [FOLDER_ID]
@@ -115,9 +130,7 @@ def upload_zip(service, zip_name):
 
     print("Uploaded updated zip")
 
-#----------------- DELETE --------------------
 
-# ---------------- CLEANUP ----------------
 def cleanup():
     if os.path.exists("token.json"):
         os.remove("token.json")
@@ -133,7 +146,8 @@ def cleanup():
     if os.path.exists("dataset_updated.zip"):
         os.remove("dataset_updated.zip")
         print("dataset_updated.zip deleted")
-# ---------------- MAIN ----------------
+
+
 if __name__ == "__main__":
     service = authenticate()
 
