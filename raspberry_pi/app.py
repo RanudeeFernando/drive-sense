@@ -3,30 +3,23 @@ import requests
 import os
 import threading
 import sys
-
 import RPi.GPIO as GPIO
-
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)
-
 if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
-
 if PARENT_DIR not in sys.path:
     sys.path.append(PARENT_DIR)
-
 from raspberry_pi.sensors.led_light import LEDLight
 from sensors.ultrasonic_sensor import UltrasonicSensor
 from sensors.camera_sensor import CameraSensor
 from sensors.ldr_sensor import LDRSensor
 from ml_models.vehicle_classification_model import VehicleClassificationModel
-
 from raspberry_pi.data_models.vehicle_type import VehicleType
 from raspberry_pi.repositories.slot_repository import SlotRepository
 from raspberry_pi.repositories.ticket_repository import TicketRepository
 from raspberry_pi.services.slot_manager_service import SlotManagerService
 from raspberry_pi.services.ticket_manager_service import TicketManagerService
-
 from utils.logger_utils import entry_logger, exit_logger, light_logger, main_logger, log_both
 
 CLOUD_API_URL = "http://35.200.128.215:8000"
@@ -43,9 +36,13 @@ ENTRY_MAX_DISTANCE = 10
 RESET_REQUIRED = 2
 
 
-# ---------------- STATUS PUSH HELPER ----------------
+
 def push_driver_status(status: str, message: str = "", ticket: dict = None):
-    """Push a transient UI status to the local Raspberry Pi API."""
+    """
+    Sends real-time status updates to the Raspberry Pi API for the driver UI.
+    Used to display entry processing, success, or error states.
+    """
+
     try:
         payload = {"status": status, "message": message, "ticket": ticket}
         requests.put(
@@ -56,9 +53,11 @@ def push_driver_status(status: str, message: str = "", ticket: dict = None):
     except Exception as e:
         log_both(entry_logger, f"Failed to push driver status '{status}': {e}", level="warning")
 
-
-# ---------------- ENTRY PROCESS ----------------
 def entry_process(entry_sensor, camera, model, ticket_manager):
+    """
+    Handles vehicle entry detection, classification, and ticket allocation.
+    Runs continuously in a thread for real-time entry processing.
+    """
     entry_seen = False
 
     while True:
@@ -143,6 +142,10 @@ def entry_process(entry_sensor, camera, model, ticket_manager):
 
 
 def send_image_to_cloud(image_path, vehicle_type):
+    """
+    Uploads captured vehicle images to the cloud server.
+    Associates image with predicted vehicle type for storage and analysis.
+    """
     vehicle_type = vehicle_type.lower()
 
     if not os.path.exists(image_path):
@@ -171,8 +174,11 @@ def send_image_to_cloud(image_path, vehicle_type):
         log_both(entry_logger, f"Image upload failed: {e}", level="warning")
 
 
-# ---------------- EXIT PROCESS ----------------
 def exit_process(slot_sensor, slot_manager):
+    """
+    Handles vehicle exit detection and slot release.
+    Continuously monitors ultrasonic sensor for slot-based exit events.
+    """
     last_triggered_slot = None
     reset_count = 0
 
@@ -241,8 +247,11 @@ def exit_process(slot_sensor, slot_manager):
             time.sleep(2)
 
 
-# ---------------- LIGHTING PROCESS ----------------
 def lighting_process(ldr_sensor):
+    """
+    Manages automatic lighting based on ambient light detection.
+    Communicates with cloud API to sync lighting state.
+    """
     last_light_state = None
     last_enabled_state = None
 
@@ -312,9 +321,8 @@ def lighting_process(ldr_sensor):
 
 def preload_local_memory(slot_repository, ticket_repository):
     """
-    CSV-first architecture:
-    - If CSV already has data, repositories will return CSV
-    - If CSV is empty, repositories will attempt one-time Firestore bootstrap
+    Loads initial slot and ticket data into local CSV storage.
+    Performs bootstrap from Firestore if local data is empty.
     """
     try:
         slots = slot_repository.get_all_slots()
@@ -331,7 +339,8 @@ def preload_local_memory(slot_repository, ticket_repository):
 
 def recovery_sync_process(slot_repository, ticket_repository):
     """
-    Periodically push locally unsynced CSV changes back to Firestore.
+    Periodically syncs unsynced local CSV data to Firestore.
+    Ensures data consistency between edge device and cloud.
     """
     while True:
         try:
@@ -350,8 +359,11 @@ def recovery_sync_process(slot_repository, ticket_repository):
         time.sleep(SYNC_POLL_INTERVAL)
 
 
-# ---------------- MAIN ----------------
 def main():
+    """
+    Entry point of the Raspberry Pi edge system.
+    Initializes sensors, services, threads, and starts the system runtime.
+    """
     entry_sensor = UltrasonicSensor(1, "Entry Sensor", 23, 24)
     slot_sensor = UltrasonicSensor(2, "Slot Sensor", 20, 21)
     camera = CameraSensor()
@@ -366,17 +378,12 @@ def main():
     green_light = LEDLight(pin=17)
     red_light = LEDLight(pin=27)
 
-    # default light state
     red_light.turn_on()
     green_light.turn_off()
 
     preload_local_memory(slot_repository, ticket_repository)
 
     slot_manager = SlotManagerService(slot_repository)
-
-    # IMPORTANT:
-    # This assumes your current TicketManagerService accepts:
-    # (ticket_repository, slot_manager, green_light, red_light)
     ticket_manager = TicketManagerService(
         ticket_repository,
         slot_manager,

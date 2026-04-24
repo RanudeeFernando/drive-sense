@@ -14,7 +14,6 @@ def get_db():
 
     if _db is None:
         if not firebase_admin._apps:
-            # Adjust path relative to raspberry_pi folder
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
             cred_path = os.path.join(

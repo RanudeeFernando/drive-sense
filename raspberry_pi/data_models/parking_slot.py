@@ -2,6 +2,10 @@ from raspberry_pi.data_models.vehicle_type import VehicleType
 
 
 class ParkingSlot:
+    """
+    Represents a parking slot with its dimensions, type, and occupancy status.
+    Provides getter and setter methods to manage slot properties.
+    """
     def __init__(
         self,
         slot_id: int,

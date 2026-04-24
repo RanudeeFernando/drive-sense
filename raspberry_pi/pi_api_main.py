@@ -8,6 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from raspberry_pi.pi_api import router
 
+"""
+Entry point for Raspberry Pi FastAPI server.
+Initializes the API app, CORS configuration, and registers routers.
+Runs the local edge API service for sensor and UI communication.
+"""
+
 app = FastAPI(title="Smart Parking Raspberry Pi API")
 
 app.add_middleware(

@@ -21,12 +21,15 @@ _driver_status: dict = {
 _status_lock = threading.Lock()
 _reset_timer: Optional[threading.Timer] = None
 
-SUCCESS_RESET_DELAY = 20  # driver needs time to read slot + PIN
-ERROR_RESET_DELAY = 12   # enough to read the error message
+SUCCESS_RESET_DELAY = 20
+ERROR_RESET_DELAY = 12   
 
 
 def _schedule_reset(delay: int):
-    """Cancel any pending reset timer and start a fresh one."""
+    """
+    Schedules a reset of the driver UI state after a given delay.
+    Ensures the system returns to idle after success or error events.
+    """
     global _reset_timer
     if _reset_timer is not None:
         _reset_timer.cancel()
@@ -64,18 +67,26 @@ class PaymentRequest(BaseModel):
     ticket_id: str
 
 class DriverStatusUpdate(BaseModel):
-    status: str           # "processing" | "success" | "error"
+    status: str           
     message: str = ""
     ticket: Optional[dict] = None
 
 
 @router.get("/")
 def home():
+    """
+    Health check endpoint for Raspberry Pi API.
+    Confirms that the Smart Parking system is running.
+    """
     return {"message": "Smart Parking Raspberry Pi API Running!"}
 
 
 @router.get("/driver-view/latest")
 def get_latest_driver_view():
+    """
+    Retrieves the most recent parking ticket details.
+    Used to display entry information on the driver UI.
+    """
     tickets = ticket_repository.get_all_tickets()
 
     if not tickets:
@@ -96,6 +107,10 @@ def get_latest_driver_view():
 
 @router.post("/exit/verify-pin")
 def process_exit_by_pin(req: VerifyPinRequest):
+    """
+    Processes vehicle exit using PIN verification.
+    Calculates exit logic and releases slot if valid.
+    """
     result = ticket_manager_service.process_exit_by_pin(req.pin_code)
 
     if result["status"] == "failed":
@@ -105,6 +120,10 @@ def process_exit_by_pin(req: VerifyPinRequest):
 
 @router.post("/exit/pay")
 def process_payment(req: PaymentRequest):
+    """
+    Confirms payment for a parking ticket.
+    Triggers gate opening after successful payment.
+    """
     result = ticket_manager_service.process_payment(req.ticket_id)
 
     if result["status"] == "failed":
@@ -114,9 +133,11 @@ def process_payment(req: PaymentRequest):
 
 @router.get("/driver-view/status")
 def get_driver_status():
-    """Polled by the entry dashboard every 2 s to drive the UI state machine."""
+    """
+    Returns current driver UI state (processing, success, or error).
+    Used by frontend to render real-time system feedback.
+    """
     with _status_lock:
-        # Also expose the reset delays so the UI can sync its countdown
         return {
             **_driver_status,
             "success_reset_delay": SUCCESS_RESET_DELAY,
@@ -126,7 +147,10 @@ def get_driver_status():
 
 @router.put("/driver-view/status")
 def update_driver_status(req: DriverStatusUpdate):
-    """Called by the Raspberry Pi to push state transitions."""
+    """
+    Updates driver UI state from Raspberry Pi events.
+    Handles automatic reset timing for UI transitions.
+    """
     global _reset_timer
 
     allowed = {"processing", "success", "error"}
@@ -140,14 +164,11 @@ def update_driver_status(req: DriverStatusUpdate):
         _driver_status["status"] = req.status
         _driver_status["message"] = req.message
         _driver_status["ticket"] = req.ticket
-
-    # Auto-reset to idle after success or error so the welcome screen restores
     if req.status == "success":
         _schedule_reset(SUCCESS_RESET_DELAY)
     elif req.status == "error":
         _schedule_reset(ERROR_RESET_DELAY)
     else:
-        # Cancel any lingering reset timer when processing starts fresh
         if _reset_timer is not None:
             _reset_timer.cancel()
             _reset_timer = None

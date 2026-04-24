@@ -12,6 +12,10 @@ class SlotRepository:
 
     @staticmethod
     def _doc_to_slot(doc) -> ParkingSlot:
+        """
+        Converts a Firestore document into a ParkingSlot object.
+        Maps database fields to the domain model.
+        """
         data = doc.to_dict()
         return ParkingSlot(
             slot_id=int(data["slot_id"]),
@@ -59,7 +63,8 @@ class SlotRepository:
 
     def get_slot_by_id(self, slot_id: int):
         """
-        CSV first. Firestore second.
+        Retrieves a parking slot by ID.
+        Checks local CSV first, then Firestore if not found locally.
         """
         local_slot = self.memory_store.get_slot_by_id(slot_id)
         if local_slot is not None:
@@ -79,8 +84,8 @@ class SlotRepository:
 
     def reserve_slot(self, slot_id: int) -> bool:
         """
-        CSV first, then try Firestore sync.
-        This makes runtime operation DB-independent.
+        Marks a slot as occupied.
+        Updates local CSV first and then syncs the change to Firestore.
         """
         local_success = self.memory_store.reserve_slot(slot_id, is_synced=False)
         if not local_success:
@@ -110,7 +115,8 @@ class SlotRepository:
 
     def release_slot(self, slot_id: int) -> bool:
         """
-        CSV first, then try Firestore sync.
+        Marks a slot as free.
+        Updates local CSV first and then syncs the change to Firestore.
         """
         local_success = self.memory_store.release_slot(slot_id, is_synced=False)
         if not local_success:
@@ -140,8 +146,8 @@ class SlotRepository:
 
     def get_all_slots(self):
         """
-        CSV first if it already has data.
-        Otherwise bootstrap from Firestore one time.
+        Retrieves all parking slots.
+        Uses local CSV if available, otherwise bootstraps from Firestore.
         """
         local_slots = self.memory_store.get_all_slots()
         if len(local_slots) > 0:
@@ -166,6 +172,10 @@ class SlotRepository:
             return []
 
     def sync_unsynced_slots_to_firestore(self) -> int:
+        """
+        Syncs all locally modified (unsynced) slots to Firestore.
+        Returns the number of successfully synced slots.
+        """
         synced_count = 0
         unsynced_slots = self.memory_store.get_unsynced_slots()
 
@@ -186,7 +196,8 @@ class SlotRepository:
 
     def bootstrap_from_firestore(self) -> int:
         """
-        Optional manual bootstrap helper.
+        Loads all slots from Firestore into local CSV storage.
+        Used for initial setup or recovery.
         """
         try:
             docs = self.collection.stream()

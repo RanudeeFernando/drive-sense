@@ -19,6 +19,10 @@ class TicketRepository:
 
     @staticmethod
     def _build_fallback_slot(slot_id: int, vehicle_type: VehicleType) -> ParkingSlot:
+        """
+        Creates a fallback ParkingSlot object when Firestore slot data is missing.
+        Used to prevent system failure when slot details are unavailable.
+        """
         return ParkingSlot(
             slot_id=slot_id,
             slot_type=vehicle_type,
@@ -29,15 +33,13 @@ class TicketRepository:
 
     def get_active_ticket_by_pin(self, pin_code: str):
         """
-        CSV first, Firestore second.
+        Retrieves an active ticket using PIN code.
+        Checks local CSV first, then falls back to Firestore.
         """
-
-        # 1. Check local memory (FAST - Raspberry Pi)
         local_ticket = self.memory_store.get_active_ticket_by_pin(pin_code)
         if local_ticket is not None:
             return local_ticket
 
-        # 2. Fallback to Firestore
         try:
             docs = (
                 self.collection
@@ -48,8 +50,6 @@ class TicketRepository:
 
             for doc in docs:
                 ticket = self._doc_to_ticket(doc)
-
-                # cache locally for future use
                 self.memory_store.upsert_ticket(ticket, is_synced=True)
 
                 return ticket
@@ -62,12 +62,11 @@ class TicketRepository:
 
     def count_active_tickets_by_slot_id(self, slot_id: int) -> int:
         """
-        Count active tickets for a slot. Check local memory first, then Firestore.
+        Counts active tickets for a given slot ID.
+        Combines local CSV and Firestore data for accuracy.
         """
-        # 1. Check local memory (FAST - Raspberry Pi)
+
         local_count = self.memory_store.count_active_tickets_for_slot_id(slot_id)
-        
-        # 2. Fallback to Firestore (for synced tickets)
         try:
             docs = (
                 self.collection
@@ -79,11 +78,13 @@ class TicketRepository:
         except Exception as e:
             print(f"DEBUG[TicketRepository]: Firestore count failed for slot {slot_id}: {e}")
             firestore_count = 0
-        
-        # Return the maximum since local might have newer tickets not yet synced
         return max(local_count, firestore_count)
 
     def generate_pin_code(self) -> str:
+        """
+        Generates a unique 4-digit PIN code.
+        Ensures no active ticket already uses the generated PIN.
+        """
         while True:
             pin = f"{random.randint(0, 9999):04d}"
             existing_ticket = self.get_active_ticket_by_pin(pin)
@@ -91,6 +92,10 @@ class TicketRepository:
                 return pin
 
     def _doc_to_ticket(self, doc) -> Ticket:
+        """
+        Converts a Firestore document into a Ticket object.
+        Handles missing slot data using fallback slot creation.
+        """
         data = doc.to_dict()
 
         slot_id = int(data["slot_id"])
@@ -115,7 +120,8 @@ class TicketRepository:
 
     def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> dict:
         """
-        CSV first, then Firestore sync.
+        Creates a new parking ticket.
+        Stores it locally first and then syncs with Firestore.
         """
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         ticket_id = f"DST-{timestamp}"
@@ -123,8 +129,6 @@ class TicketRepository:
         entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         print(f"DEBUG[TicketRepository]: generating ticket {ticket_id}")
-
-        # 1. local first
         result = self.memory_store.generate_ticket(
             parking_slot=parking_slot,
             vehicle_type=vehicle_type,
@@ -133,8 +137,6 @@ class TicketRepository:
             entry_time=entry_time,
             is_synced=False,
         )
-
-        # 2. try Firestore sync
         try:
             ticket = self.memory_store.get_ticket_by_id(ticket_id)
             if ticket is not None:
@@ -150,7 +152,8 @@ class TicketRepository:
 
     def get_ticket_by_id(self, ticket_id: str):
         """
-        CSV first, Firestore second.
+        Retrieves a ticket by its ID.
+        Uses local CSV first, then queries Firestore if needed.
         """
         local_ticket = self.memory_store.get_ticket_by_id(ticket_id)
         if local_ticket is not None:
@@ -175,8 +178,10 @@ class TicketRepository:
         duration_minutes: float,
         price: float,
     ) -> bool:
+
         """
-        CSV first, then Firestore sync.
+        Updates ticket details when a vehicle exits.
+        Marks ticket as closed and syncs updates to Firestore.
         """
         exit_time_str = exit_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -209,8 +214,8 @@ class TicketRepository:
 
     def get_all_tickets(self):
         """
-        CSV first if already populated.
-        Firestore only used for bootstrap.
+        Retrieves all tickets from storage.
+        Uses CSV as primary source and Firestore for initial bootstrap.
         """
         local_tickets = self.memory_store.get_all_tickets()
         if len(local_tickets) > 0:
@@ -235,6 +240,10 @@ class TicketRepository:
             return []
 
     def sync_unsynced_tickets_to_firestore(self) -> int:
+        """
+        Syncs locally modified tickets to Firestore.
+        Returns the number of successfully synced tickets.
+        """
         synced_count = 0
         unsynced_tickets = self.memory_store.get_unsynced_tickets()
 
@@ -255,7 +264,8 @@ class TicketRepository:
 
     def bootstrap_from_firestore(self) -> int:
         """
-        Optional manual bootstrap helper.
+        Loads ticket data from Firestore into local storage.
+        Used for initial setup or recovery of local data.
         """
         try:
             docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()

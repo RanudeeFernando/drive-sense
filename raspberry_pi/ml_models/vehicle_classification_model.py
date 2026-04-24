@@ -3,18 +3,22 @@ import tensorflow as tf
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 class VehicleClassificationModel:
+    """
+    Loads a TensorFlow Lite model to classify vehicle types from images.
+    Performs preprocessing, inference, and returns predicted vehicle class with confidence.
+    """
     def __init__(self, model_path: str = "ml_models/vehicle_model_int8.tflite"):
         self.model_path = model_path
-
-        # Load TFLite model
         self.interpreter = tf.lite.Interpreter(model_path=self.model_path)
         self.interpreter.allocate_tensors()
-
-        # Get input & output details
         self.input_details = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
 
     def classify_vehicle(self, img_path: str) -> str:
+        """
+        Classifies a vehicle from the given image using a TFLite model.
+        Returns the predicted vehicle type (bike, car, lorry, or unknown).
+        """
         img = tf.keras.utils.load_img(img_path, target_size=(224, 224))
         img_array = tf.keras.utils.img_to_array(img)
         img_array = preprocess_input(img_array)

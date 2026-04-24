@@ -15,6 +15,11 @@ class SlotManagerService:
         return self.slot_repository.release_slot(slot_id)
 
     def process_release_by_id(self, slot_id: int):
+        """
+        Handles slot release logic based on exit trigger.
+        Validates slot status and returns structured response.
+        """
+
         print(f"Received exit trigger for slot_id: {slot_id}")
 
         slot = self.slot_repository.get_slot_by_id(slot_id)
@@ -26,7 +31,6 @@ class SlotManagerService:
                 "message": "Invalid slot ID"
             }
 
-        # Ignore false trigger (already free)
         if not slot.get_slot_status():
             return {
                 "status": "ignored",
@@ -34,7 +38,6 @@ class SlotManagerService:
                 "message": "Slot already free (false trigger ignored)"
             }
 
-        # Only release if occupied
         success = self.slot_repository.release_slot(slot.get_slot_id())
 
         if not success:
@@ -51,6 +54,10 @@ class SlotManagerService:
         }
 
     def is_slot_released(self, slot_id: int) -> bool:
+        """
+        Checks whether a slot is currently free.
+        Returns True if slot is not occupied.
+        """
         slot = self.slot_repository.get_slot_by_id(slot_id)
 
         if slot is None:

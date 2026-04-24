@@ -3,6 +3,10 @@ from raspberry_pi.data_models.vehicle_type import VehicleType
 
 
 class Ticket:
+    """
+    Represents a parking ticket containing vehicle, slot, and timing details.
+    Tracks entry/exit times, duration, pricing, and ticket status including PIN verification.
+    """
     def __init__(
         self,
         ticket_id: str,

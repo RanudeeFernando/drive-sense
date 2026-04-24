@@ -35,6 +35,10 @@ class TicketMemoryStore:
         return str(value).strip().lower() in ("true", "1", "yes")
 
     def _ensure_file_exists(self) -> None:
+        """
+        Creates the CSV file if it does not exist.
+        Upgrades older files by adding missing fields.
+        """
         if not os.path.exists(self.csv_path):
             with open(self.csv_path, "w", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
@@ -42,7 +46,7 @@ class TicketMemoryStore:
             print(f"DEBUG[TicketMemoryStore]: created {self.csv_path}")
             return
 
-        # upgrade old csv without is_synced
+        
         with open(self.csv_path, "r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             existing_fields = reader.fieldnames or []
@@ -64,6 +68,10 @@ class TicketMemoryStore:
             print("DEBUG[TicketMemoryStore]: upgraded CSV with is_synced column")
 
     def _build_slot(self, slot_id: int, vehicle_type: VehicleType) -> ParkingSlot:
+        """
+        Creates a basic ParkingSlot object using given slot ID and type.
+        Used when reconstructing ticket data.
+        """
         return ParkingSlot(
             slot_id=slot_id,
             slot_type=vehicle_type,
@@ -73,6 +81,10 @@ class TicketMemoryStore:
         )
 
     def _row_to_ticket(self, row: dict) -> Ticket:
+        """
+        Converts a CSV row dictionary into a Ticket object.
+        Handles type conversions and default values.
+        """
         vehicle_type = VehicleType(row["vehicle_type"])
         slot = self._build_slot(int(row["slot_id"]), vehicle_type)
 
@@ -90,6 +102,10 @@ class TicketMemoryStore:
         )
 
     def _ticket_to_row(self, ticket: Ticket, is_synced: bool = False) -> dict:
+        """
+        Converts a Ticket object into a CSV row dictionary.
+        Includes sync status for external synchronization.
+        """
         return {
             "ticket_id": ticket.get_ticket_id(),
             "slot_id": str(ticket.get_slot_id()),
@@ -105,6 +121,10 @@ class TicketMemoryStore:
         }
 
     def get_all_rows(self) -> List[dict]:
+        """
+        Retrieves all ticket rows from the CSV file.
+        Ensures required fields are present.
+        """
         self._ensure_file_exists()
         rows = []
 
@@ -118,6 +138,10 @@ class TicketMemoryStore:
         return rows
 
     def overwrite_all_rows(self, rows: List[dict]) -> None:
+        """
+        Replaces all existing ticket data with new rows.
+        Normalizes values before writing to CSV.
+        """
         self._ensure_file_exists()
 
         normalized_rows = []
@@ -148,10 +172,18 @@ class TicketMemoryStore:
         return [self._row_to_ticket(row) for row in self.get_all_rows()]
 
     def overwrite_all_tickets(self, tickets: List[Ticket], is_synced: bool = False) -> None:
+        """
+        Replaces all ticket data using Ticket objects.
+        Converts them into rows before saving.
+        """
         rows = [self._ticket_to_row(ticket, is_synced=is_synced) for ticket in tickets]
         self.overwrite_all_rows(rows)
 
     def upsert_ticket(self, ticket: Ticket, is_synced: bool = False) -> None:
+        """
+        Updates an existing ticket or inserts a new one.
+        Maintains sync status during the operation.
+        """
         rows = self.get_all_rows()
         updated = False
 
@@ -168,19 +200,30 @@ class TicketMemoryStore:
         print(f"DEBUG[TicketMemoryStore]: upserted ticket {ticket.get_ticket_id()} synced={is_synced}")
 
     def get_ticket_by_id(self, ticket_id: str):
+        """
+        Retrieves a ticket by its ID.
+        Returns None if no matching ticket is found.
+        """
         for ticket in self.get_all_tickets():
             if ticket.get_ticket_id() == ticket_id:
                 return ticket
         return None
 
     def get_active_ticket_by_slot_id(self, slot_id: int):
+        """
+        Finds an active ticket for a given slot ID.
+        Returns None if no active ticket exists.
+        """
         for ticket in self.get_all_tickets():
             if ticket.get_slot_id() == slot_id and ticket.get_status() == "active":
                 return ticket
         return None
 
     def count_active_tickets_for_slot_id(self, slot_id: int) -> int:
-        """Count the number of active tickets for a specific slot."""
+        """
+        Counts active tickets associated with a slot.
+        Used to track multiple allocations if any.
+        """
         count = 0
         for ticket in self.get_all_tickets():
             if ticket.get_slot_id() == slot_id and ticket.get_status() == "active":
@@ -188,6 +231,10 @@ class TicketMemoryStore:
         return count
 
     def get_active_ticket_by_pin(self, pin_code: str):
+        """
+        Retrieves an active ticket using a PIN code.
+        Returns None if no match is found.
+        """
         for ticket in self.get_all_tickets():
             if ticket.get_pin_code() == pin_code and ticket.get_status() == "active":
                 return ticket
@@ -202,6 +249,12 @@ class TicketMemoryStore:
         entry_time: str,
         is_synced: bool = False
     ) -> dict:
+
+        """
+        Creates a new ticket and stores it.
+        Returns essential ticket details for immediate use.
+        """
+
         ticket = Ticket(
             ticket_id=ticket_id,
             parking_slot=parking_slot,
@@ -233,6 +286,11 @@ class TicketMemoryStore:
         price: float,
         is_synced: bool = False
     ) -> bool:
+
+        """
+        Updates ticket details when a vehicle exits.
+        Marks ticket as closed and updates pricing info.
+        """
         rows = self.get_all_rows()
 
         for row in rows:
@@ -250,6 +308,10 @@ class TicketMemoryStore:
         return False
 
     def seed_from_tickets(self, tickets: List[Ticket]) -> None:
+        """
+        Initializes storage with a list of tickets.
+        Used to sync data from external sources.
+        """
         if not tickets:
             print("DEBUG[TicketMemoryStore]: seed skipped because ticket list is empty")
             return
@@ -258,6 +320,11 @@ class TicketMemoryStore:
         print(f"DEBUG[TicketMemoryStore]: seeded {len(tickets)} tickets from Firestore")
 
     def get_unsynced_tickets(self) -> List[Ticket]:
+        """
+        Retrieves tickets that are not yet synced.
+        Used for pushing updates externally.
+        """
+
         unsynced = []
         for row in self.get_all_rows():
             if not self._to_bool(row.get("is_synced", False)):
@@ -265,6 +332,10 @@ class TicketMemoryStore:
         return unsynced
 
     def mark_ticket_synced(self, ticket_id: str) -> None:
+        """
+        Marks a specific ticket as synced.
+        Updates only the sync status field.
+        """
         rows = self.get_all_rows()
 
         for row in rows:

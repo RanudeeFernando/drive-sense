@@ -4,13 +4,17 @@ import os
 RESET = "\033[0m"
 COLORS = {
     "ENTRY-THREAD": "\033[94m",
-    "EXIT-THREAD": "\033[91m",
+    "EXIT-THREAD": "\033[95m",
     "LIGHT-THREAD": "\033[93m",
     "MAIN-THREAD": "\033[97m",
 }
 
 
 class ColorFormatter(logging.Formatter):
+    """
+    Custom log formatter that adds color based on log source name.
+    Enhances console readability by visually separating thread logs.
+    """
     def format(self, record):
         source_name = getattr(record, "source_name", record.name)
         color = COLORS.get(source_name, "")
@@ -19,7 +23,10 @@ class ColorFormatter(logging.Formatter):
 
 
 def setup_file_logger(name, log_file):
-    # Ensure logs folder exists
+    """
+    Creates and configures a file-based logger.
+    Ensures logs are written to a specified file with consistent formatting.
+    """
     log_dir = os.path.dirname(log_file)
     if log_dir and not os.path.exists(log_dir):
         os.makedirs(log_dir, exist_ok=True)
@@ -52,8 +59,6 @@ if not console_logger.handlers:
     )
     console_handler.setFormatter(console_formatter)
     console_logger.addHandler(console_handler)
-
-# Put log files in a single 'logs' directory at the root of raspberry_pi
 LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
 
 entry_logger = setup_file_logger("ENTRY-THREAD", os.path.join(LOGS_DIR, "entry.log"))
@@ -63,6 +68,10 @@ main_logger = setup_file_logger("MAIN-THREAD", os.path.join(LOGS_DIR, "main.log"
 
 
 def log_both(logger, message, level="info"):
+    """
+    Logs a message to both file and console outputs.
+    Ensures synchronized logging between persistent storage and terminal view.
+    """
     file_log_method = getattr(logger, level, logger.info)
     console_log_method = getattr(console_logger, level, console_logger.info)
 

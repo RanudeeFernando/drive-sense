@@ -10,6 +10,11 @@ class CameraSensor(Sensor):
         self.camera_index = camera_index
 
     def capture_image(self) -> str | None:
+        """
+        Captures an image from the connected camera.
+        Saves the image locally and returns the file path.
+        Returns None if capture fails.
+        """
         folder = "captured_images"
         os.makedirs(folder, exist_ok=True)
 
@@ -39,6 +44,10 @@ class CameraSensor(Sensor):
         return filepath
     
     def move_to_class_folder(self, vehicle_type, img_path):
+        """
+        Moves a captured image into a folder based on vehicle type.
+        Organizes images into classified directories for storage.
+        """
         vehicle_type = vehicle_type.lower()
 
         if vehicle_type not in ["car", "bike", "lorry"]:
@@ -49,7 +58,7 @@ class CameraSensor(Sensor):
 
         new_path = os.path.join(folder_path, os.path.basename(img_path))
 
-        # MOVE the file (important)
+        
         shutil.move(img_path, new_path)
 
         return new_path

@@ -13,6 +13,10 @@ class TicketManagerService:
         self.red_light = red_light
     
     def _allow_exit_signal(self):
+        """
+        Controls traffic light signals to allow vehicle exit.
+        Turns green light on temporarily, then resets to red.
+        """
         self.red_light.turn_off()
         self.green_light.turn_on()
         
@@ -24,6 +28,10 @@ class TicketManagerService:
         
 
     def allocate_ticket(self, vehicle_type: VehicleType) -> dict:
+        """
+        Allocates a parking slot and generates a new ticket.
+        Reserves slot and returns ticket details for entry.
+        """
         available_slot = self.slot_manager_service.find_available_slot(vehicle_type)
 
         if not available_slot:
@@ -56,6 +64,10 @@ class TicketManagerService:
 
 
     def process_exit_by_pin(self, pin_code: str) -> dict:
+        """
+        Processes vehicle exit using PIN verification.
+        Calculates parking fee, updates ticket, and releases slot if needed.
+        """
         ticket = self.ticket_repository.get_active_ticket_by_pin(pin_code)
 
         if ticket is None:
@@ -65,19 +77,10 @@ class TicketManagerService:
             }
         
         slot_id = ticket.get_slot_id()
-        
-        # Check if there are more than 1 active tickets for this slot
-        # If so, don't release the slot (another vehicle has parked in the meantime)
         active_ticket_count = self.ticket_repository.count_active_tickets_by_slot_id(slot_id)
         
-        if active_ticket_count > 1:
-            return {
-                "status": "failed",
-                "message": f"Cannot release slot {slot_id}. Another vehicle is currently parked in this slot."
-            }
-        
-        # Only release if there's exactly 1 active ticket (the current one)
-        self.slot_manager_service.release_slot_by_id(slot_id)
+        if active_ticket_count == 1:
+            self.slot_manager_service.release_slot_by_id(slot_id)
 
         entry_time = datetime.strptime(ticket.get_entry_time(), "%Y-%m-%d %H:%M:%S")
         exit_time = datetime.now()
@@ -110,6 +113,10 @@ class TicketManagerService:
         }
 
     def process_payment(self, ticket_id: str) -> dict:
+        """
+        Verifies payment and triggers exit permission signal.
+        Opens gate by activating green light asynchronously.
+        """
         ticket = self.ticket_repository.get_ticket_by_id(ticket_id)
         if ticket is None:
             return {

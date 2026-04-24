@@ -15,7 +15,10 @@ class UltrasonicSensor(Sensor):
         GPIO.setup(self.echo_pin, GPIO.IN)
 
     def get_distance(self):
-        # Send trigger pulse
+        """
+        Measures distance using ultrasonic pulse timing.
+        Returns calculated distance in centimeters.
+        """
         GPIO.output(self.trig_pin, True)
         time.sleep(0.00001)
         GPIO.output(self.trig_pin, False)
@@ -23,24 +26,27 @@ class UltrasonicSensor(Sensor):
         start_time = time.time()
         stop_time = time.time()
 
-        # Save start time
+        
         while GPIO.input(self.echo_pin) == 0:
             start_time = time.time()
 
-        # Save arrival time
+        
         while GPIO.input(self.echo_pin) == 1:
             stop_time = time.time()
 
-        # Time difference
+        
         time_elapsed = stop_time - start_time
 
-        # Distance calculation
+        
         distance = (time_elapsed * 34300) / 2
 
         return round(distance, 2)
     
-    # This method is used to detect the presence of a vehicle at the entry point and trigger the camera.
     def detect_object_in_range(self, min_distance=0, max_distance=10):
+        """
+        Detects whether an object is within a specified distance range.
+        Used for triggering events like camera activation.
+        """
         distance = self.get_distance()
         print(f"Measured distance: {distance} cm")
 
@@ -51,6 +57,10 @@ class UltrasonicSensor(Sensor):
             return False
 
     def is_within_threshold(self, max_threshold):
+        """
+        Checks if an object is within a maximum distance threshold.
+        Returns distance if within range, otherwise None.
+        """
         distance = self.get_distance()
 
         if distance is None:
@@ -62,6 +72,10 @@ class UltrasonicSensor(Sensor):
         return None
 
     def get_slot_id_by_distance(self, distance=None):
+        """
+        Maps measured distance to a predefined parking slot ID.
+        Returns slot ID based on configured distance ranges.
+        """
         if distance is None:
             distance = self.get_distance()
 

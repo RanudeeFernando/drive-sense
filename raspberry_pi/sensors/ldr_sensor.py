@@ -14,6 +14,10 @@ class LDRSensor(Sensor):
         
 
     def read_resistance(self) -> float:
+        """
+        Measures light intensity by calculating resistance from the LDR sensor.
+        Returns a resistance value proportional to ambient light level.
+        """
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, GPIO.LOW)
         time.sleep(0.1)
