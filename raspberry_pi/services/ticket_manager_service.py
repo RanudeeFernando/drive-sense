@@ -54,59 +54,59 @@ class TicketManagerService:
             "pin_code": ticket_data["pin_code"]
         }
 
-    def generate_e_receipt(self, ticket_id: str) -> dict:
-        ticket = self.ticket_repository.get_ticket_by_id(ticket_id)
-
-        if ticket is None:
-            return {
-                "status": "failed",
-                "message": f"Ticket not found: {ticket_id}"
-            }
-
-        if ticket.get_status() == "closed":
-            return {
-                "status": "failed",
-                "message": f"Ticket already closed: {ticket_id}"
-            }
-
-        slot_id = ticket.get_slot_id()
-
-        active_ticket = self.ticket_repository.get_active_ticket_by_slot_id(slot_id)
-        if active_ticket is None:
-            return {
-                "status": "failed",
-                "message": f"No active ticket found for slot: {slot_id}"
-            }
-
-        self.slot_manager_service.release_slot_by_id(slot_id)
-
-        entry_time = datetime.strptime(ticket.get_entry_time(), "%Y-%m-%d %H:%M:%S")
-        exit_time = datetime.now()
-
-        duration_minutes = (exit_time - entry_time).total_seconds() / 60.0
-        duration_hours = duration_minutes / 60.0
-
-        rate_per_hour = PARKING_RATES[ticket.get_vehicle_type()]
-        price = round(duration_hours * rate_per_hour, 2)
-
-        self.ticket_repository.update_ticket_on_exit(
-            ticket_id=ticket.get_ticket_id(),
-            exit_time=exit_time,
-            duration_minutes=duration_minutes,
-            price=price
-        )
-
-        return {
-            "status": "success",
-            "ticket_id": ticket.get_ticket_id(),
-            "slot_id": slot_id,
-            "vehicle_type": ticket.get_vehicle_type().value,
-            "entry_time": ticket.get_entry_time(),
-            "exit_time": exit_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "duration_minutes": round(duration_minutes, 2),
-            "price": price,
-            "message": "E-receipt generated successfully"
-        }
+    # def generate_e_receipt(self, ticket_id: str) -> dict:
+    #     ticket = self.ticket_repository.get_ticket_by_id(ticket_id)
+    #
+    #     if ticket is None:
+    #         return {
+    #             "status": "failed",
+    #             "message": f"Ticket not found: {ticket_id}"
+    #         }
+    #
+    #     if ticket.get_status() == "closed":
+    #         return {
+    #             "status": "failed",
+    #             "message": f"Ticket already closed: {ticket_id}"
+    #         }
+    #
+    #     slot_id = ticket.get_slot_id()
+    #
+    #     active_ticket = self.ticket_repository.get_active_ticket_by_slot_id(slot_id)
+    #     if active_ticket is None:
+    #         return {
+    #             "status": "failed",
+    #             "message": f"No active ticket found for slot: {slot_id}"
+    #         }
+    #
+    #     self.slot_manager_service.release_slot_by_id(slot_id)
+    #
+    #     entry_time = datetime.strptime(ticket.get_entry_time(), "%Y-%m-%d %H:%M:%S")
+    #     exit_time = datetime.now()
+    #
+    #     duration_minutes = (exit_time - entry_time).total_seconds() / 60.0
+    #     duration_hours = duration_minutes / 60.0
+    #
+    #     rate_per_hour = PARKING_RATES[ticket.get_vehicle_type()]
+    #     price = round(duration_hours * rate_per_hour, 2)
+    #
+    #     self.ticket_repository.update_ticket_on_exit(
+    #         ticket_id=ticket.get_ticket_id(),
+    #         exit_time=exit_time,
+    #         duration_minutes=duration_minutes,
+    #         price=price
+    #     )
+    #
+    #     return {
+    #         "status": "success",
+    #         "ticket_id": ticket.get_ticket_id(),
+    #         "slot_id": slot_id,
+    #         "vehicle_type": ticket.get_vehicle_type().value,
+    #         "entry_time": ticket.get_entry_time(),
+    #         "exit_time": exit_time.strftime("%Y-%m-%d %H:%M:%S"),
+    #         "duration_minutes": round(duration_minutes, 2),
+    #         "price": price,
+    #         "message": "E-receipt generated successfully"
+    #     }
 
     def process_exit_by_pin(self, pin_code: str) -> dict:
         ticket = self.ticket_repository.get_active_ticket_by_pin(pin_code)

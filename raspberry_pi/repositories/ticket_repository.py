@@ -112,62 +112,6 @@ class TicketRepository:
             print(f"DEBUG[TicketRepository]: Firestore get_ticket_by_id failed for {ticket_id}: {e}")
             return None
 
-    def get_active_ticket_by_slot_id(self, slot_id: int):
-        """
-        CSV first, Firestore second.
-        """
-        local_ticket = self.memory_store.get_active_ticket_by_slot_id(slot_id)
-        if local_ticket is not None:
-            return local_ticket
-
-        try:
-            docs = (
-                self.collection
-                .where("slot_id", "==", slot_id)
-                .where("status", "==", "active")
-                .limit(1)
-                .stream()
-            )
-
-            for doc in docs:
-                ticket = self._doc_to_ticket(doc)
-                self.memory_store.upsert_ticket(ticket, is_synced=True)
-                return ticket
-
-            return None
-
-        except Exception as e:
-            print(f"DEBUG[TicketRepository]: Firestore get_active_ticket_by_slot_id failed: {e}")
-            return None
-
-    def get_active_ticket_by_pin(self, pin_code: str):
-        """
-        CSV first, Firestore second.
-        """
-        local_ticket = self.memory_store.get_active_ticket_by_pin(pin_code)
-        if local_ticket is not None:
-            return local_ticket
-
-        try:
-            docs = (
-                self.collection
-                .where("pin_code", "==", pin_code)
-                .where("status", "==", "active")
-                .limit(1)
-                .stream()
-            )
-
-            for doc in docs:
-                ticket = self._doc_to_ticket(doc)
-                self.memory_store.upsert_ticket(ticket, is_synced=True)
-                return ticket
-
-            return None
-
-        except Exception as e:
-            print(f"DEBUG[TicketRepository]: Firestore get_active_ticket_by_pin failed: {e}")
-            return None
-
     def update_ticket_on_exit(
         self,
         ticket_id: str,
