@@ -49,7 +49,15 @@ export default function EReceiptPage() {
         setError(data?.message || "Invalid Access PIN");
       }
     } catch (err) {
-      setError("Network error. Please try again.");
+      if (err.type === "validation") {
+        if (err.message && err.message.includes("No active ticket found")) {
+          setError("Invalid PIN");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Network error. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
