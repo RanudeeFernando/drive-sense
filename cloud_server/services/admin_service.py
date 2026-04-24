@@ -18,12 +18,12 @@ class AdminService:
             return {"success": True, "message": "Login successful."}
         return {"success": False, "message": "Invalid username or password."}
 
-    def toggle_light(self, turn_on: bool):
-        """Existing logic to control the light through the light controller."""
-        if turn_on:
-            self.light_manager_service.turn_on()
-        else:
-            self.light_manager_service.turn_off()
+    # def toggle_light(self, turn_on: bool):
+    #     """Existing logic to control the light through the light controller."""
+    #     if turn_on:
+    #         self.light_manager_service.turn_on()
+    #     else:
+    #         self.light_manager_service.turn_off()
 
     def set_ldr_status(self, enabled: bool) -> dict:
         """Set the LDR enabled status in Firestore and update the lighting system accordingly."""
