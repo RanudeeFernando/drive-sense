@@ -20,8 +20,6 @@ class SlotRepository:
         return ParkingSlot(
             slot_id=int(data["slot_id"]),
             slot_type=VehicleType(data["slot_type"]),
-            slot_length=float(data["slot_length"]),
-            slot_width=float(data["slot_width"]),
             is_occupied=bool(data["is_occupied"])
         )
 

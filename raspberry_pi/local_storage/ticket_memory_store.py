@@ -75,8 +75,6 @@ class TicketMemoryStore:
         return ParkingSlot(
             slot_id=slot_id,
             slot_type=vehicle_type,
-            slot_length=0.0,
-            slot_width=0.0,
             is_occupied=False
         )
 

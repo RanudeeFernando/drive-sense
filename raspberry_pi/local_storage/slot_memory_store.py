@@ -16,8 +16,6 @@ class SlotMemoryStore:
         self.fieldnames = [
             "slot_id",
             "slot_type",
-            "slot_length",
-            "slot_width",
             "is_occupied",
             "is_synced"
         ]
@@ -67,8 +65,6 @@ class SlotMemoryStore:
         return ParkingSlot(
             slot_id=int(row["slot_id"]),
             slot_type=VehicleType(row["slot_type"]),
-            slot_length=float(row["slot_length"]),
-            slot_width=float(row["slot_width"]),
             is_occupied=self._to_bool(row["is_occupied"])
         )
 
@@ -79,8 +75,6 @@ class SlotMemoryStore:
         return {
             "slot_id": str(slot.get_slot_id()),
             "slot_type": slot.get_slot_type().value,
-            "slot_length": str(slot.get_slot_length()),
-            "slot_width": str(slot.get_slot_width()),
             "is_occupied": str(slot.get_slot_status()),
             "is_synced": str(is_synced)
         }
@@ -113,8 +107,6 @@ class SlotMemoryStore:
             normalized_rows.append({
                 "slot_id": str(row["slot_id"]),
                 "slot_type": str(row["slot_type"]),
-                "slot_length": str(row["slot_length"]),
-                "slot_width": str(row["slot_width"]),
                 "is_occupied": str(row["is_occupied"]),
                 "is_synced": str(row.get("is_synced", False))
             })
