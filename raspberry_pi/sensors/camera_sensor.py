@@ -1,0 +1,66 @@
+import os
+import cv2
+import time
+from sensors.sensor import Sensor
+import shutil
+
+class CameraSensor(Sensor):
+    def __init__(self, sensor_id: int = 1, camera_index: int = 0):
+        super().__init__(sensor_id, "camera sensor")
+        self.camera_index = camera_index
+
+    def capture_image(self) -> str | None:
+        """
+        Captures an image from the connected camera.
+        Saves the image locally and returns the file path.
+        Returns None if capture fails.
+        """
+        folder = "captured_images"
+        os.makedirs(folder, exist_ok=True)
+
+        cap = cv2.VideoCapture(self.camera_index)
+
+        if not cap.isOpened():
+            print("Cannot open USB camera")
+            return None
+
+        time.sleep(0.5)
+
+        ret, frame = cap.read()
+
+        if not ret:
+            print("Failed to capture image")
+            cap.release()
+            return None
+
+        timestamp = int(time.time())
+        filename = f"vehicle_{timestamp}.jpg"
+        filepath = os.path.join(folder, filename)
+
+        cv2.imwrite(filepath, frame)
+        print(f"Captured image: {filename}")
+
+        cap.release()
+        return filepath
+    
+    def move_to_class_folder(self, vehicle_type, img_path):
+        """
+        Moves a captured image into a folder based on vehicle type.
+        Organizes images into classified directories for storage.
+        """
+        vehicle_type = vehicle_type.lower()
+
+        if vehicle_type not in ["car", "bike", "lorry"]:
+            vehicle_type = "unknown"
+
+        folder_path = os.path.join("captured_images", vehicle_type)
+        os.makedirs(folder_path, exist_ok=True)
+
+        new_path = os.path.join(folder_path, os.path.basename(img_path))
+
+        
+        shutil.move(img_path, new_path)
+
+        return new_path
+
+        
