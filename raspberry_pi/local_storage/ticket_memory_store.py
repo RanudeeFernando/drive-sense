@@ -179,6 +179,14 @@ class TicketMemoryStore:
                 return ticket
         return None
 
+    def count_active_tickets_for_slot_id(self, slot_id: int) -> int:
+        """Count the number of active tickets for a specific slot."""
+        count = 0
+        for ticket in self.get_all_tickets():
+            if ticket.get_slot_id() == slot_id and ticket.get_status() == "active":
+                count += 1
+        return count
+
     def get_active_ticket_by_pin(self, pin_code: str):
         for ticket in self.get_all_tickets():
             if ticket.get_pin_code() == pin_code and ticket.get_status() == "active":

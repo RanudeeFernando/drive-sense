@@ -65,10 +65,19 @@ class TicketManagerService:
             }
         
         slot_id = ticket.get_slot_id()
-
-        # NOTE:
-        # We do NOT release the slot here.
-        # The slot is released physically by the slot sensor flow.
+        
+        # Check if there are more than 1 active tickets for this slot
+        # If so, don't release the slot (another vehicle has parked in the meantime)
+        active_ticket_count = self.ticket_repository.count_active_tickets_by_slot_id(slot_id)
+        
+        if active_ticket_count > 1:
+            return {
+                "status": "failed",
+                "message": f"Cannot release slot {slot_id}. Another vehicle is currently parked in this slot."
+            }
+        
+        # Only release if there's exactly 1 active ticket (the current one)
+        self.slot_manager_service.release_slot_by_id(slot_id)
 
         entry_time = datetime.strptime(ticket.get_entry_time(), "%Y-%m-%d %H:%M:%S")
         exit_time = datetime.now()

@@ -60,6 +60,29 @@ class TicketRepository:
             print(f"DEBUG[TicketRepository]: Firestore get_active_ticket_by_pin failed for {pin_code}: {e}")
             return None
 
+    def count_active_tickets_by_slot_id(self, slot_id: int) -> int:
+        """
+        Count active tickets for a slot. Check local memory first, then Firestore.
+        """
+        # 1. Check local memory (FAST - Raspberry Pi)
+        local_count = self.memory_store.count_active_tickets_for_slot_id(slot_id)
+        
+        # 2. Fallback to Firestore (for synced tickets)
+        try:
+            docs = (
+                self.collection
+                .where("slot_id", "==", str(slot_id))
+                .where("status", "==", "active")
+                .stream()
+            )
+            firestore_count = sum(1 for _ in docs)
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore count failed for slot {slot_id}: {e}")
+            firestore_count = 0
+        
+        # Return the maximum since local might have newer tickets not yet synced
+        return max(local_count, firestore_count)
+
     def generate_pin_code(self) -> str:
         while True:
             pin = f"{random.randint(0, 9999):04d}"
