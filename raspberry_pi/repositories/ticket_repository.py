@@ -27,6 +27,39 @@ class TicketRepository:
             is_occupied=False,
         )
 
+    def get_active_ticket_by_pin(self, pin_code: str):
+        """
+        CSV first, Firestore second.
+        """
+
+        # 1. Check local memory (FAST - Raspberry Pi)
+        local_ticket = self.memory_store.get_active_ticket_by_pin(pin_code)
+        if local_ticket is not None:
+            return local_ticket
+
+        # 2. Fallback to Firestore
+        try:
+            docs = (
+                self.collection
+                .where("pin_code", "==", pin_code)
+                .where("status", "==", "active")
+                .stream()
+            )
+
+            for doc in docs:
+                ticket = self._doc_to_ticket(doc)
+
+                # cache locally for future use
+                self.memory_store.upsert_ticket(ticket, is_synced=True)
+
+                return ticket
+
+            return None
+
+        except Exception as e:
+            print(f"DEBUG[TicketRepository]: Firestore get_active_ticket_by_pin failed for {pin_code}: {e}")
+            return None
+
     def generate_pin_code(self) -> str:
         while True:
             pin = f"{random.randint(0, 9999):04d}"

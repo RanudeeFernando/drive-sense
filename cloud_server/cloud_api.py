@@ -2,15 +2,15 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 import shutil
 from pydantic import BaseModel
 
-from cloud_server.services.slot_manager_service import SlotManagerService
-from cloud_server.services.ticket_manager_service import TicketManagerService
+# from cloud_server.services.slot_manager_service import SlotManagerService
+# from cloud_server.services.ticket_manager_service import TicketManagerService
 from cloud_server.services.light_manager_service import LightManagerService
 
 from cloud_server.repositories.slot_repository import SlotRepository
 from cloud_server.repositories.ticket_repository import TicketRepository
 from cloud_server.repositories.light_repository import LightRepository
 from cloud_server.services.admin_service import AdminService
-from cloud_server.data_models.vehicle_type import VehicleType
+# from cloud_server.data_models.vehicle_type import VehicleType
 import os
 from datetime import datetime   
 
@@ -22,11 +22,11 @@ slot_repository = SlotRepository()
 ticket_repository = TicketRepository()
 
 # Initialize services
-slot_manager_service = SlotManagerService(slot_repository)
-ticket_manager_service = TicketManagerService(
-    ticket_repository=ticket_repository,
-    slot_manager_service=slot_manager_service
-)
+# slot_manager_service = SlotManagerService(slot_repository)
+# ticket_manager_service = TicketManagerService(
+#     ticket_repository=ticket_repository,
+#     slot_manager_service=slot_manager_service
+# )
 
 # Keep light separately for now
 light_manager_service = LightManagerService()
