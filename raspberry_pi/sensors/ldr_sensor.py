@@ -1,10 +1,12 @@
 import RPi.GPIO as GPIO
 import time
 from gpiozero import LED
+from sensors.sensor import Sensor
 
 
-class LDRSensor:
-    def __init__(self, pin=4, led_pin=18, threshold=500):
+class LDRSensor(Sensor):
+    def __init__(self, sensor_id=3, name="LDR Sensor", pin=4, led_pin=18, threshold=500):
+        super().__init__(sensor_id, name)
         self.pin = pin
         self.threshold = threshold
         self.led = LED(led_pin)
