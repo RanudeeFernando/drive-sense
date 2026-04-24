@@ -1,11 +1,4 @@
-"""
-seed_firestore.py — Run ONCE to populate the slots collection.
 
-Usage:
-    python -m cloud_server.data.seed_firestore
-
-After running successfully, this file can be deleted.
-"""
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -22,6 +15,12 @@ SLOTS = [
 
 
 def seed():
+    """
+    Adds all predefined slots to the database.
+
+    Each slot from SLOTS is saved using its slot_id, and progress
+    is printed as the data is inserted.
+    """
     db = get_db()
     for slot in SLOTS:
         db.collection("slots").document(slot["slot_id"]).set(slot)

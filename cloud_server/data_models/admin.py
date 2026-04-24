@@ -1,7 +1,11 @@
-# cloud_server/data_models/admin.py
+
 
 
 class Admin:
+    """
+    Simple admin user model with username and password,
+    with a method to convert it to a dictionary.
+    """
     def __init__(self, username: str, password: str):
         self._username = username
         self._password = password

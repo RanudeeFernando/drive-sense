@@ -26,6 +26,7 @@ def home():
     return {"message": "Smart Parking Cloud Server API Running!"}
 
 def run_model_training():
+    """ Runs the uploader.py and model.py scripts sequentially"""
     print("Starting scheduled tasks...")
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     uploader_script_path = os.path.join(project_root, "uploader.py")
@@ -53,6 +54,7 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def start_scheduler():
+    """ Starts scheduler and runs model training to run in every 30 days"""
     if START_SYNC:
         run_model_training()
     scheduler.add_job(run_model_training, 'interval', days=30)

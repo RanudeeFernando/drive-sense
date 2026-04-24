@@ -25,14 +25,15 @@ class TicketRepository:
             is_occupied=False
         )
 
-    # def generate_pin_code(self) -> str:
-    #     while True:
-    #         pin = f"{random.randint(0, 9999):04d}"
-    #         existing_ticket = self.get_active_ticket_by_pin(pin)
-    #         if existing_ticket is None:
-    #             return pin
+
 
     def _doc_to_ticket(self, doc) -> Ticket:
+        """
+        Converts a database document into a Ticket object.
+
+        Reads ticket data from Firestore and maps it into a Ticket model,
+        including fallback slot handling if the slot is missing.
+        """
         data = doc.to_dict()
 
         slot_id = int(data["slot_id"])
@@ -56,91 +57,9 @@ class TicketRepository:
             pin_status=data.get("pin_status", "active")
         )
 
-    # def generate_ticket(self, parking_slot: ParkingSlot, vehicle_type: VehicleType) -> dict:
-    #     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    #     ticket_id = f"DST-{timestamp}"
-    #     doc_ref = self.collection.document(ticket_id)
-    #
-    #     pin_code = self.generate_pin_code()
-    #     entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #
-    #     ticket = Ticket(
-    #         ticket_id=ticket_id,
-    #         parking_slot=parking_slot,
-    #         vehicle_type=vehicle_type,
-    #         entry_time=entry_time,
-    #         exit_time="",
-    #         duration_minutes=0,
-    #         price=0,
-    #         status="active",
-    #         pin_code=pin_code,
-    #         pin_status="active"
-    #     )
-    #
-    #     doc_ref.set(ticket.to_dict())
-    #
-    #     return {
-    #         "ticket_id": ticket_id,
-    #         "pin_code": pin_code,
-    #         "entry_time": entry_time,
-    #         "slot_id": parking_slot.get_slot_id(),
-    #         "vehicle_type": vehicle_type.value
-    #     }
 
-    # def get_ticket_by_id(self, ticket_id: str):
-    #     doc = self.collection.document(ticket_id).get()
-    #     if doc.exists:
-    #         return self._doc_to_ticket(doc)
-    #     return None
-
-    # def get_active_ticket_by_slot_id(self, slot_id: int):
-    #     docs = (
-    #         self.collection
-    #         .where("slot_id", "==", slot_id)
-    #         .where("status", "==", "active")
-    #         .limit(1)
-    #         .stream()
-    #     )
-    #
-    #     for doc in docs:
-    #         return self._doc_to_ticket(doc)
-    #     return None
-
-    # def get_active_ticket_by_pin(self, pin_code: str):
-    #     docs = (
-    #         self.collection
-    #         .where("pin_code", "==", pin_code)
-    #         .where("status", "==", "active")
-    #         .limit(1)
-    #         .stream()
-    #     )
-    #
-    #     for doc in docs:
-    #         return self._doc_to_ticket(doc)
-    #     return None
-
-    # def update_ticket_on_exit(
-    #     self,
-    #     ticket_id: str,
-    #     exit_time: datetime,
-    #     duration_minutes: float,
-    #     price: float
-    # ) -> bool:
-    #     doc_ref = self.collection.document(ticket_id)
-    #     doc = doc_ref.get()
-    #
-    #     if not doc.exists:
-    #         return False
-    #
-    #     doc_ref.update({
-    #         "exit_time": exit_time.strftime("%Y-%m-%d %H:%M:%S"),
-    #         "duration_minutes": round(duration_minutes, 2),
-    #         "price": price,
-    #         "status": "closed",
-    #         "pin_status": "expired"
-    #     })
-    #     return True
 
     def get_all_tickets(self):
+        """Returns all tickets from Firestore, ordered by entry time descending"""
         docs = self.collection.order_by("entry_time", direction="DESCENDING").stream()
         return [self._doc_to_ticket(doc) for doc in docs]
