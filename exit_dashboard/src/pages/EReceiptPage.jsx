@@ -8,7 +8,7 @@ export default function EReceiptPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState(null);
-  const [view, setView] = useState("pin"); // pin | receipt | success
+  const [view, setView] = useState("pin"); 
 
   useEffect(() => {
     let timer;

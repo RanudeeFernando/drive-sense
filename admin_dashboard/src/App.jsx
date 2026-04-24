@@ -6,7 +6,6 @@ import ParkingLogsPage from "./pages/ParkingLogsPage.jsx";
 import SlotAvailabilityPage from "./pages/SlotAvailabilityPage.jsx";
 import LightingManagementPage from "./pages/LightingManagementPage.jsx";
 
-// Protect pages (require login)
 function ProtectedRoute({ children }) {
   const isLoggedIn = localStorage.getItem("adminLoggedIn") === "true";
   return isLoggedIn ? children : <Navigate to="/login" replace />;

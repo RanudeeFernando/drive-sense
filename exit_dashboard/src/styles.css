@@ -35,7 +35,7 @@ body {
 
 .dashboard-container {
   max-width: 600px;
-  margin: 20px auto; /* Reduced from 40px */
+  margin: 20px auto; 
   width: 100%;
   padding: 0 40px;
   flex: 1;
@@ -60,22 +60,21 @@ body {
 }
 
 .section-title {
-  font-size: 32px; /* Reduced from 36px */
+  font-size: 32px;
   font-weight: 800;
-  margin: 10px 0 25px; /* Reduced margin */
+  margin: 10px 0 25px;
   text-align: center;
   color: #020202;
   letter-spacing: -1px;
 }
 
-/* --- PROFESSIONAL CARD LAYOUT --- */
 .professional-card {
   background: white;
   border-radius: 24px;
-  padding: 30px; /* Reduced from 40px */
+  padding: 30px; 
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.03);
-  margin-bottom: 30px; /* Reduced from 40px */
+  margin-bottom: 30px; 
 }
 
 .pin-input-large {
@@ -127,7 +126,6 @@ body {
   box-shadow: none;
 }
 
-/* --- RECEIPT STYLING --- */
 .receipt-statement {
   background: white;
   border-radius: 24px;
@@ -155,7 +153,7 @@ body {
 .receipt-row {
   display: flex;
   justify-content: space-between;
-  padding: 12px 0; /* Reduced from 15px */
+  padding: 12px 0; 
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -177,7 +175,7 @@ body {
 
 .receipt-total {
   background: #f8fafc;
-  padding: 20px 30px; /* Reduced vertical padding */
+  padding: 20px 30px; 
   display: flex;
   justify-content: space-between;
   align-items: center;

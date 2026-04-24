@@ -61,7 +61,6 @@ export default function DriverViewPage() {
     };
   }, []);
 
-  // ── IDLE: full-page layout, no header/footer ─────────────────────────────
 
   if (status === "idle") {
     return (
@@ -93,7 +92,6 @@ export default function DriverViewPage() {
     );
   }
 
-  // ── ACTIVE STATES: processing / success / error ───────────────────────────
 
   const renderProcessing = () => (
     <div className="professional-card processing-card">
