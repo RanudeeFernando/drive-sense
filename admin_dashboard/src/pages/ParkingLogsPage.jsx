@@ -84,7 +84,7 @@ export default function ParkingLogsPage() {
                       <td>
                         <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', background: log.status === 'Paid' ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 82, 82, 0.1)', color: log.status === 'Paid' ? 'var(--success)' : 'var(--error)', border: `1px solid ${log.status === 'Paid' ? 'rgba(0, 200, 83, 0.2)' : 'rgba(255, 82, 82, 0.2)'}` }}>{log.status}</span>
                       </td>
-                      <td style={{ fontWeight: '700' }}>{log.price ? `$${log.price}` : "-"}</td>
+                      <td style={{ fontWeight: '700' }}>{log.price ? `Rs. ${log.price}` : "-"}</td>
                     </tr>
                   ))
                 ) : (

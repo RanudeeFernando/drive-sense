@@ -28,7 +28,7 @@ CLASSES = ["bike", "car", "lorry", "unknown"]
 
 IMG_SIZE = (224, 224)
 BATCH_SIZE = 32
-EPOCHS = 1
+EPOCHS = 10
 
 MODEL_PATH = "cloud_server/model_train/vehicle_model.h5"
 TFLITE_PATH = "cloud_server/model_train/vehicle_model_int8.tflite"
