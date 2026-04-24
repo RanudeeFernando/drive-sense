@@ -39,8 +39,8 @@ Check out the system in action:
 ## 🚀 Getting Started
 
 ### 1️⃣ Prerequisites
-- **Python 3.9+**
-- **Node.js 18+**
+- **Python 3.13**
+- **Node.js**
 - **Raspberry Pi 4** (with Camera, Ultrasonic Sensors, LDR, and LEDs)
 
 ### 2️⃣ Installation
@@ -85,20 +85,18 @@ Check out the system in action:
 ### **A. Start Cloud Server**
 The cloud server handles global state and persistent data.
 ```bash
-cd cloud_server
-python -m main
+uvicorn cloud_server.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-*API docs available at: `http://localhost:8000/docs` (Local) or `http://35.200.128.215:8000/docs` (Cloud)*
 
 ### **B. Start Raspberry Pi Edge Node**
 Ensure sensors are connected to the correct GPIO pins.
 ```bash
 cd raspberry_pi
 # 1. Start the Local API 
-python -m pi_api_main
+uvicorn raspberry_pi.pi_api_main:app --host 127.0.0.1 --port 8001 --reload
 
 # 2. Start the Hardware Processing Script 
-python -m app
+python app.py
 ```
 
 ### **C. Start Front-end Dashboards**
@@ -121,3 +119,12 @@ npm run dev
 - **Status LEDs**: Green (17), Red (27)
 
 ---
+
+## 🏷️ Contributors
+
+| Name | GitHub |
+|------|--------|
+| Ranudee Fernando | [Ranudee Fernando](https://github.com/RanudeeFernando) |
+| Binara Mendis | [Binara Mendis](https://github.com/BinaraMendis7) |
+| Irushi Karunarathne | [Irushi Karunarathne](https://github.com/Imirushik) |
+| Thehara Habarangamuwa | [Thehara Habarangamuwa](https://github.com/TheharaH) |
