@@ -21,12 +21,6 @@ router = APIRouter()
 slot_repository = SlotRepository()
 ticket_repository = TicketRepository()
 
-# Initialize services
-# slot_manager_service = SlotManagerService(slot_repository)
-# ticket_manager_service = TicketManagerService(
-#     ticket_repository=ticket_repository,
-#     slot_manager_service=slot_manager_service
-# )
 
 # Keep light separately for now
 light_manager_service = LightManagerService()
@@ -40,52 +34,12 @@ class AdminLoginRequest(BaseModel):
     username: str
     password: str
 
-
-# class TicketingRequest(BaseModel):
-#     vehicle_type: VehicleType
-
-
-# class SlotReleaseRequest(BaseModel):
-#     slot_id: int
-
-
-# class ReceiptRequest(BaseModel):
-#     ticket_id: str
-
-
-# class VerifyPinRequest(BaseModel):
-#     pin_code: str
-
-
 class LightRequest(BaseModel):
     light_on: bool
 
 
 class LDRControlRequest(BaseModel):
     enabled: bool
-
-
-# @router.post("/ticket")
-# def allocate_ticket(req: TicketingRequest):
-#     return ticket_manager_service.allocate_ticket(req.vehicle_type)
-
-
-# @router.post("/release-slot")
-# def process_slot_release(req: SlotReleaseRequest):
-#     return slot_manager_service.process_release_by_id(req.slot_id)
-
-
-# @router.post("/ticket-receipt")
-# def get_receipt(req: ReceiptRequest):
-#     return ticket_manager_service.generate_e_receipt(req.ticket_id)
-
-
-# @router.post("/exit/verify-pin")
-# def process_exit_by_pin(req: VerifyPinRequest):
-#     result = ticket_manager_service.process_exit_by_pin(req.pin_code)
-#     if result["status"] == "failed":
-#         raise HTTPException(status_code=400, detail=result["message"])
-#     return result
 
 @router.post("/lighting")
 def control_light(req: LightRequest):
@@ -135,25 +89,6 @@ def set_ldr_control(req: LDRControlRequest):
 def get_ldr_status():
     return {"enabled": admin_service.get_ldr_status()}
 
-
-# @router.get("/driver-view/latest")
-# def get_latest_driver_view():
-#     tickets = ticket_repository.get_all_tickets()
-#
-#     if not tickets:
-#         raise HTTPException(status_code=404, detail="No tickets found")
-#
-#     latest_ticket = tickets[0]
-#
-#     return {
-#         "system_name": "Drive Sense AI",
-#         "welcome_message": "Welcome to the Smart Vehicle Parking System",
-#         "ticket_id": latest_ticket.get_ticket_id(),
-#         "slot_id": latest_ticket.get_slot_id(),
-#         "vehicle_type": latest_ticket.get_vehicle_type().value,
-#         "entry_time": latest_ticket.get_entry_time(),
-#         "pin_code": latest_ticket.get_pin_code()
-#     }
 
 @router.get("/light-logs")
 def get_light_logs():
